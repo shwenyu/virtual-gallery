@@ -1,0 +1,52 @@
+---
+import "../styles/global.css";
+import { withBase } from "../lib/url";
+
+interface Props {
+  title: string;
+  description?: string;
+  noindex?: boolean;
+}
+
+const { title, description = "个人摄影作品集与虚拟画廊", noindex = false } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+function isActive(href: string) {
+  const full = withBase(href);
+  return href === "/" ? currentPath === full : currentPath.startsWith(full);
+}
+---
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-nav">
+      <div class="wrap site-nav__inner">
+        <a class="site-nav__mark" href={withBase("/")}>回声画廊</a>
+        <ul class="site-nav__links">
+          <li><a href={withBase("/")} aria-current={isActive("/") ? "page" : undefined}>首页</a></li>
+          <li><a href={withBase("/gallery/")} aria-current={isActive("/gallery") ? "page" : undefined}>画廊</a></li>
+          <li><a href={withBase("/about/")} aria-current={isActive("/about") ? "page" : undefined}>关于</a></li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <span>&copy; {new Date().getFullYear()} 回声画廊</span>
+        <span>以影像策展的方式，重新讲述照片</span>
+      </div>
+    </footer>
+  </body>
+</html>

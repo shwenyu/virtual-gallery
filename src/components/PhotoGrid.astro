@@ -1,0 +1,149 @@
+---
+import type { Photo, SeriesLayout } from "../lib/content";
+
+interface Props {
+  photos: Photo[];
+  layout?: SeriesLayout;
+}
+
+const { photos, layout = "grid" } = Astro.props;
+---
+
+<div class={`photogrid photogrid--${layout}`} data-lightbox-group>
+  {
+    photos.map((photo, i) => (
+      <figure class="photogrid__item" style={`--i:${i % 6}`}>
+        <button
+          class="photogrid__frame"
+          type="button"
+          data-lightbox-trigger
+          data-src={photo.src}
+          data-caption={photo.caption ?? photo.alt}
+          data-index={i}
+          aria-label={`放大查看：${photo.alt}`}
+        >
+          <img
+            src={photo.src}
+            width={photo.width}
+            height={photo.height}
+            alt={photo.alt}
+            loading="lazy"
+            decoding="async"
+          />
+        </button>
+        {photo.caption && <figcaption>{photo.caption}</figcaption>}
+      </figure>
+    ))
+  }
+</div>
+
+<style>
+  .photogrid {
+    --gap: clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  .photogrid__frame {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: var(--bg-raised);
+    cursor: zoom-in;
+    overflow: hidden;
+  }
+
+  .photogrid__frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .photogrid__frame:hover img {
+    transform: scale(1.02);
+  }
+
+  .photogrid__item figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    font-family: var(--font-display);
+    font-style: italic;
+  }
+
+  /* ---- grid: uniform, cropped ---- */
+  .photogrid--grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap);
+  }
+
+  .photogrid--grid .photogrid__frame {
+    aspect-ratio: 4 / 5;
+  }
+
+  @media (min-width: 760px) {
+    .photogrid--grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* ---- masonry: column flow, natural aspect ---- */
+  .photogrid--masonry {
+    column-count: 1;
+    column-gap: var(--gap);
+  }
+
+  .photogrid--masonry .photogrid__item {
+    break-inside: avoid;
+    margin-bottom: var(--gap);
+  }
+
+  @media (min-width: 620px) {
+    .photogrid--masonry {
+      column-count: 2;
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .photogrid--masonry {
+      column-count: 3;
+    }
+  }
+
+  /* ---- editorial: asymmetric rhythm on a 6-col grid ---- */
+  .photogrid--editorial {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--gap);
+  }
+
+  .photogrid--editorial .photogrid__frame {
+    aspect-ratio: 3 / 4;
+  }
+
+  .photogrid--editorial .photogrid__item {
+    grid-column: span 6;
+  }
+
+  @media (min-width: 760px) {
+    .photogrid--editorial .photogrid__item {
+      grid-column: span 3;
+    }
+    /* rhythm: large / small-small / large / small-small ... */
+    .photogrid--editorial .photogrid__item[style*="--i:0"],
+    .photogrid--editorial .photogrid__item[style*="--i:3"] {
+      grid-column: span 4;
+    }
+    .photogrid--editorial .photogrid__item[style*="--i:0"] .photogrid__frame,
+    .photogrid--editorial .photogrid__item[style*="--i:3"] .photogrid__frame {
+      aspect-ratio: 4 / 3;
+    }
+    .photogrid--editorial .photogrid__item[style*="--i:1"],
+    .photogrid--editorial .photogrid__item[style*="--i:2"],
+    .photogrid--editorial .photogrid__item[style*="--i:4"],
+    .photogrid--editorial .photogrid__item[style*="--i:5"] {
+      grid-column: span 2;
+    }
+  }
+</style>

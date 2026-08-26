@@ -1,0 +1,120 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getAllSeries, getSeriesCover } from "../lib/content";
+import { withBase } from "../lib/url";
+
+const series = getAllSeries();
+---
+
+<BaseLayout title="回声画廊 · 个人摄影作品集">
+  <section class="hero wrap">
+    <p class="eyebrow">Personal Photography · Curated</p>
+    <h1>把散落的照片，<br />重新讲成一个故事。</h1>
+    <p class="hero__lede">
+      这里不是相册的堆叠，而是以主题策展的方式重新编排的影像空间——
+      每一组系列都有自己的节奏、留白与呼吸。
+    </p>
+    <a class="button" href={withBase("/gallery/")}>进入画廊</a>
+  </section>
+
+  <section class="series-list wrap">
+    {
+      series.map((s) => {
+        const cover = getSeriesCover(s);
+        return (
+          <a class="series-card" href={withBase(`/gallery/${s.slug}/`)}>
+            <div class="series-card__image">
+              {cover && (
+                <img
+                  src={cover.src}
+                  width={cover.width}
+                  height={cover.height}
+                  alt={cover.alt}
+                  loading="lazy"
+                />
+              )}
+            </div>
+            <div class="series-card__meta">
+              <h2>{s.title}</h2>
+              <span class="series-card__subtitle">{s.subtitle}</span>
+              <p>{s.description}</p>
+            </div>
+          </a>
+        );
+      })
+    }
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding-block: var(--space-6) var(--space-5);
+    max-width: 780px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.1rem, 5vw, 3.4rem);
+    line-height: 1.15;
+    margin-block: var(--space-2) var(--space-3);
+  }
+
+  .hero__lede {
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    max-width: 46ch;
+    margin-bottom: var(--space-3);
+  }
+
+  .series-list {
+    display: grid;
+    gap: var(--space-4);
+    padding-bottom: var(--space-6);
+  }
+
+  @media (min-width: 760px) {
+    .series-list {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .series-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .series-card__image {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--bg-raised);
+    margin-bottom: var(--space-2);
+  }
+
+  .series-card__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .series-card:hover .series-card__image img {
+    transform: scale(1.03);
+  }
+
+  .series-card h2 {
+    font-size: 1.3rem;
+    display: inline-block;
+  }
+
+  .series-card__subtitle {
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    margin-left: 0.5em;
+  }
+
+  .series-card p {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    margin-top: 0.4em;
+  }
+</style>

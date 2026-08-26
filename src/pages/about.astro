@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="关于 · 回声画廊">
+  <section class="wrap about">
+    <p class="eyebrow">About</p>
+    <h1>关于这个画廊</h1>
+    <p>
+      这是一个个人摄影作品的策展空间。相较于按时间顺序堆叠的相册，这里的每一组系列
+      都是一次刻意的编排——选择、排序、留白，让照片之间产生对话。
+    </p>
+    <p>
+      技术上，这个网站由 Astro 构建，托管在 GitHub Pages 上；照片经由后台上传至云端图床，
+      并保持分辨率与色彩管理的一致性。
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  .about {
+    padding-block: var(--space-5) var(--space-6);
+    max-width: 640px;
+  }
+
+  .about h1 {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin-block: var(--space-1) var(--space-3);
+  }
+
+  .about p {
+    color: var(--ink-soft);
+    margin-bottom: var(--space-2);
+  }
+</style>

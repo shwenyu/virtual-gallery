@@ -1,0 +1,122 @@
+[
+  {
+    "id": "p001",
+    "src": "https://picsum.photos/id/1015/1600/2131",
+    "width": 1600,
+    "height": 2131,
+    "alt": "河谷与晨雾",
+    "caption": "河谷 · 晨雾未散",
+    "capturedAt": "2024-04-02",
+    "tags": ["landscape", "water", "quiet"]
+  },
+  {
+    "id": "p002",
+    "src": "https://picsum.photos/id/1043/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "干燥的荒野植被",
+    "caption": "荒野 · 午后",
+    "capturedAt": "2024-04-03",
+    "tags": ["landscape", "texture"]
+  },
+  {
+    "id": "p003",
+    "src": "https://picsum.photos/id/1025/1400/1867",
+    "width": 1400,
+    "height": 1867,
+    "alt": "静卧的犬",
+    "caption": "静",
+    "capturedAt": "2024-05-11",
+    "tags": ["portrait", "quiet"]
+  },
+  {
+    "id": "p004",
+    "src": "https://picsum.photos/id/1074/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "林间光影",
+    "caption": "林间 · 光落下来",
+    "capturedAt": "2024-05-20",
+    "tags": ["landscape", "light"]
+  },
+  {
+    "id": "p005",
+    "src": "https://picsum.photos/id/1011/1600/2000",
+    "width": 1600,
+    "height": 2000,
+    "alt": "海边礁石",
+    "caption": "礁石 · 退潮",
+    "capturedAt": "2024-06-02",
+    "tags": ["seascape", "texture"]
+  },
+  {
+    "id": "p006",
+    "src": "https://picsum.photos/id/1039/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "雪山轮廓",
+    "caption": "雪线之上",
+    "capturedAt": "2024-06-15",
+    "tags": ["landscape", "mountain"]
+  },
+  {
+    "id": "p007",
+    "src": "https://picsum.photos/id/1062/1400/1867",
+    "width": 1400,
+    "height": 1867,
+    "alt": "空椅子",
+    "caption": "空",
+    "capturedAt": "2024-07-01",
+    "tags": ["still-life", "quiet"]
+  },
+  {
+    "id": "p008",
+    "src": "https://picsum.photos/id/1080/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "老墙与光斑",
+    "caption": "墙 · 剥落的时间",
+    "capturedAt": "2024-07-19",
+    "tags": ["texture", "urban"]
+  },
+  {
+    "id": "p009",
+    "src": "https://picsum.photos/id/1069/1600/2131",
+    "width": 1600,
+    "height": 2131,
+    "alt": "窗边侧影",
+    "caption": "窗",
+    "capturedAt": "2024-08-04",
+    "tags": ["portrait", "light"]
+  },
+  {
+    "id": "p010",
+    "src": "https://picsum.photos/id/1084/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "湖面倒影",
+    "caption": "倒影",
+    "capturedAt": "2024-08-22",
+    "tags": ["landscape", "water", "quiet"]
+  },
+  {
+    "id": "p011",
+    "src": "https://picsum.photos/id/1016/1600/1067",
+    "width": 1600,
+    "height": 1067,
+    "alt": "沙丘曲线",
+    "caption": "沙丘",
+    "capturedAt": "2024-09-03",
+    "tags": ["landscape", "texture"]
+  },
+  {
+    "id": "p012",
+    "src": "https://picsum.photos/id/1002/1600/2131",
+    "width": 1600,
+    "height": 2131,
+    "alt": "石阶尽头",
+    "caption": "尽头",
+    "capturedAt": "2024-09-28",
+    "tags": ["urban", "quiet"]
+  }
+]

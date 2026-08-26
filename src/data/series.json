@@ -1,0 +1,29 @@
+[
+  {
+    "slug": "silence",
+    "title": "Silence",
+    "subtitle": "静",
+    "description": "关于独处与留白的一组影像。声音退场之后，光线、质地与等待本身成为主角。",
+    "layout": "editorial",
+    "cover": "p003",
+    "photoIds": ["p003", "p007", "p009", "p012", "p001"]
+  },
+  {
+    "slug": "terrain",
+    "title": "Terrain",
+    "subtitle": "地势",
+    "description": "山脊、河谷与海岸线——记录地表在不同尺度下的形状。",
+    "layout": "masonry",
+    "cover": "p006",
+    "photoIds": ["p006", "p002", "p011", "p005", "p010", "p004"]
+  },
+  {
+    "slug": "surface",
+    "title": "Surface",
+    "subtitle": "表面",
+    "description": "墙、沙与水面——一组关于质地与时间痕迹的近距离观察。",
+    "layout": "grid",
+    "cover": "p008",
+    "photoIds": ["p008", "p011", "p005", "p002"]
+  }
+]

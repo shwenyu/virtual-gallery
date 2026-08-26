@@ -1,0 +1,431 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="后台上传 · 回声画廊" description="仅站主本人使用的照片上传与策展后台" noindex>
+  <section class="wrap admin">
+    <p class="eyebrow">Admin</p>
+    <h1>上传与策展</h1>
+    <p class="note">
+      本页面只在你自己的浏览器里运行：照片直接上传到你的 Cloudinary 账号，
+      条目信息通过你的 GitHub 令牌直接提交到仓库。不会有任何密钥被打包进网站代码。
+      请不要在公共/共享电脑上使用，用完可在 GitHub 设置中随时吊销令牌。
+    </p>
+
+    <details class="panel" id="settings-panel">
+      <summary>连接设置</summary>
+      <div class="grid2">
+        <label>
+          Cloudinary Cloud Name
+          <input type="text" id="cf-cloud" placeholder="例如 dxxxxxxx" />
+        </label>
+        <label>
+          Cloudinary Upload Preset（unsigned）
+          <input type="text" id="cf-preset" placeholder="例如 gallery-unsigned" />
+        </label>
+        <label>
+          GitHub Owner
+          <input type="text" id="gh-owner" placeholder="你的 GitHub 用户名" />
+        </label>
+        <label>
+          GitHub Repo
+          <input type="text" id="gh-repo" placeholder="virtual-gallery" />
+        </label>
+        <label>
+          分支
+          <input type="text" id="gh-branch" placeholder="main" value="main" />
+        </label>
+        <label>
+          GitHub Token（fine-grained，仅 Contents: Read & Write）
+          <input type="password" id="gh-token" placeholder="github_pat_..." />
+        </label>
+      </div>
+      <button type="button" class="button" id="save-settings">保存到本机</button>
+      <span class="status" id="settings-status"></span>
+    </details>
+
+    <form class="panel upload-form" id="upload-form">
+      <h2>新增照片</h2>
+      <label>
+        选择图片文件（可多选）
+        <input type="file" id="files" accept="image/*" multiple required />
+      </label>
+
+      <div class="grid2">
+        <label>
+          归入系列
+          <select id="series-select">
+            <option value="">载入设置后自动读取…</option>
+          </select>
+        </label>
+        <label>
+          或新建系列 slug（留空则用上方已选）
+          <input type="text" id="new-series-slug" placeholder="例如 nightwalk" />
+        </label>
+        <label>
+          新系列标题（新建时填写）
+          <input type="text" id="new-series-title" placeholder="Nightwalk" />
+        </label>
+        <label>
+          新系列排版
+          <select id="new-series-layout">
+            <option value="grid">grid（均匀网格）</option>
+            <option value="masonry">masonry（瀑布流）</option>
+            <option value="editorial">editorial（杂志式节奏）</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        统一说明文字（每张图可留空，留空则用文件名）
+        <input type="text" id="caption" placeholder="例如：静" />
+      </label>
+      <label>
+        标签（逗号分隔）
+        <input type="text" id="tags" placeholder="landscape, quiet" />
+      </label>
+      <label>
+        拍摄日期
+        <input type="date" id="captured-at" />
+      </label>
+
+      <button type="submit" class="button">上传并提交到仓库</button>
+      <p class="note small">
+        提交后会：1) 把图片上传到 Cloudinary；2) 更新仓库里的
+        <code>src/data/photos.json</code>（和可选的 <code>series.json</code>）；
+        3) GitHub Actions 会自动重新构建部署，一两分钟后网站生效。
+      </p>
+    </form>
+
+    <div class="panel log" id="log" hidden>
+      <h2>执行日志</h2>
+      <ol id="log-list"></ol>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .admin {
+    padding-block: var(--space-5) var(--space-6);
+    max-width: 720px;
+  }
+
+  .admin h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .note {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .note.small {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+  }
+
+  .panel {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  .panel summary {
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+  }
+
+  .panel h2 {
+    font-size: 1.2rem;
+    margin-bottom: var(--space-2);
+  }
+
+  .grid2 {
+    display: grid;
+    gap: var(--space-2);
+    margin-block: var(--space-2);
+  }
+
+  @media (min-width: 640px) {
+    .grid2 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    margin-bottom: var(--space-2);
+  }
+
+  input, select {
+    font: inherit;
+    padding: 0.55em 0.7em;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .status {
+    margin-left: var(--space-2);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+
+  .log ol {
+    padding-left: 1.2em;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+
+  .log li[data-state="error"] {
+    color: #a4402f;
+  }
+
+  .log li[data-state="ok"] {
+    color: #4b6b4f;
+  }
+</style>
+
+<script>
+  interface Settings {
+    cloud: string;
+    preset: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    token: string;
+  }
+
+  const STORAGE_KEY = "gallery-admin-settings";
+
+  function loadSettings(): Settings {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    } catch {
+      return {} as Settings;
+    }
+  }
+
+  function fillSettingsForm(s: Settings) {
+    (document.getElementById("cf-cloud") as HTMLInputElement).value = s.cloud ?? "";
+    (document.getElementById("cf-preset") as HTMLInputElement).value = s.preset ?? "";
+    (document.getElementById("gh-owner") as HTMLInputElement).value = s.owner ?? "";
+    (document.getElementById("gh-repo") as HTMLInputElement).value = s.repo ?? "virtual-gallery";
+    (document.getElementById("gh-branch") as HTMLInputElement).value = s.branch ?? "main";
+    (document.getElementById("gh-token") as HTMLInputElement).value = s.token ?? "";
+  }
+
+  function readSettingsForm(): Settings {
+    return {
+      cloud: (document.getElementById("cf-cloud") as HTMLInputElement).value.trim(),
+      preset: (document.getElementById("cf-preset") as HTMLInputElement).value.trim(),
+      owner: (document.getElementById("gh-owner") as HTMLInputElement).value.trim(),
+      repo: (document.getElementById("gh-repo") as HTMLInputElement).value.trim(),
+      branch: (document.getElementById("gh-branch") as HTMLInputElement).value.trim() || "main",
+      token: (document.getElementById("gh-token") as HTMLInputElement).value.trim(),
+    };
+  }
+
+  fillSettingsForm(loadSettings());
+
+  document.getElementById("save-settings")?.addEventListener("click", async () => {
+    const settings = readSettingsForm();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const statusEl = document.getElementById("settings-status")!;
+    statusEl.textContent = "已保存。正在读取系列列表…";
+    try {
+      await populateSeriesSelect(settings);
+      statusEl.textContent = "已保存，系列列表已更新。";
+    } catch (e) {
+      statusEl.textContent = `已保存，但读取系列列表失败：${(e as Error).message}`;
+    }
+  });
+
+  function ghHeaders(token: string) {
+    return {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+  }
+
+  function b64EncodeUtf8(str: string) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  function b64DecodeUtf8(b64: string) {
+    return decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
+  }
+
+  async function getFile(settings: Settings, path: string) {
+    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${settings.branch}`;
+    const res = await fetch(url, { headers: ghHeaders(settings.token) });
+    if (!res.ok) throw new Error(`读取 ${path} 失败：${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return { sha: data.sha as string, content: JSON.parse(b64DecodeUtf8(data.content)) };
+  }
+
+  async function putFile(settings: Settings, path: string, content: unknown, sha: string, message: string) {
+    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { ...ghHeaders(settings.token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        content: b64EncodeUtf8(JSON.stringify(content, null, 2) + "\n"),
+        sha,
+        branch: settings.branch,
+      }),
+    });
+    if (!res.ok) throw new Error(`写入 ${path} 失败：${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async function populateSeriesSelect(settings: Settings) {
+    const select = document.getElementById("series-select") as HTMLSelectElement;
+    if (!settings.owner || !settings.repo || !settings.token) return;
+    const { content } = await getFile(settings, "src/data/series.json");
+    select.innerHTML = '<option value="">（不加入任何系列）</option>';
+    for (const s of content as Array<{ slug: string; title: string }>) {
+      const opt = document.createElement("option");
+      opt.value = s.slug;
+      opt.textContent = `${s.title} (${s.slug})`;
+      select.appendChild(opt);
+    }
+  }
+
+  {
+    const initial = loadSettings();
+    if (initial.owner && initial.repo && initial.token) {
+      populateSeriesSelect(initial).catch(() => {});
+    }
+  }
+
+  function log(message: string, state: "info" | "ok" | "error" = "info") {
+    const panel = document.getElementById("log")!;
+    const list = document.getElementById("log-list")!;
+    panel.hidden = false;
+    const li = document.createElement("li");
+    li.textContent = message;
+    li.dataset.state = state;
+    list.appendChild(li);
+    li.scrollIntoView({ block: "nearest" });
+  }
+
+  async function uploadToCloudinary(settings: Settings, file: File) {
+    const url = `https://api.cloudinary.com/v1_1/${settings.cloud}/image/upload`;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("upload_preset", settings.preset);
+    const res = await fetch(url, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`Cloudinary 上传失败：${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  function optimizedUrl(secureUrl: string) {
+    return secureUrl.replace("/upload/", "/upload/f_auto,q_auto/");
+  }
+
+  function slugifyId(publicId: string) {
+    return "p_" + publicId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(-40);
+  }
+
+  document.getElementById("upload-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const settings = readSettingsForm();
+    if (!settings.cloud || !settings.preset) {
+      log("请先在「连接设置」中填写 Cloudinary Cloud Name 与 Upload Preset。", "error");
+      return;
+    }
+    if (!settings.owner || !settings.repo || !settings.token) {
+      log("请先在「连接设置」中填写 GitHub Owner / Repo / Token。", "error");
+      return;
+    }
+
+    const filesInput = document.getElementById("files") as HTMLInputElement;
+    const files = Array.from(filesInput.files ?? []);
+    if (files.length === 0) {
+      log("请先选择至少一张图片。", "error");
+      return;
+    }
+
+    const captionBase = (document.getElementById("caption") as HTMLInputElement).value.trim();
+    const tags = (document.getElementById("tags") as HTMLInputElement).value
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const capturedAt = (document.getElementById("captured-at") as HTMLInputElement).value;
+
+    const newSeriesSlug = (document.getElementById("new-series-slug") as HTMLInputElement).value.trim();
+    const newSeriesTitle = (document.getElementById("new-series-title") as HTMLInputElement).value.trim();
+    const newSeriesLayout = (document.getElementById("new-series-layout") as HTMLSelectElement).value;
+    const existingSeriesSlug = (document.getElementById("series-select") as HTMLSelectElement).value;
+    const targetSeriesSlug = newSeriesSlug || existingSeriesSlug;
+
+    const newPhotoIds: string[] = [];
+
+    for (const file of files) {
+      try {
+        log(`上传中：${file.name} …`);
+        const result = await uploadToCloudinary(settings, file);
+        const id = slugifyId(result.public_id);
+        newPhotoIds.push(id);
+        log(`Cloudinary 上传成功：${file.name} → ${id}`, "ok");
+
+        const { sha, content: photos } = await getFile(settings, "src/data/photos.json");
+        photos.push({
+          id,
+          src: optimizedUrl(result.secure_url),
+          width: result.width,
+          height: result.height,
+          alt: captionBase || file.name.replace(/\.[^.]+$/, ""),
+          caption: captionBase,
+          capturedAt: capturedAt || undefined,
+          tags,
+        });
+        await putFile(settings, "src/data/photos.json", photos, sha, `feat(gallery): 新增照片 ${id}`);
+        log(`已写入 photos.json：${id}`, "ok");
+      } catch (err) {
+        log(`失败：${file.name} — ${(err as Error).message}`, "error");
+      }
+    }
+
+    if (targetSeriesSlug && newPhotoIds.length > 0) {
+      try {
+        const { sha, content: seriesList } = await getFile(settings, "src/data/series.json");
+        let entry = seriesList.find((s: { slug: string }) => s.slug === targetSeriesSlug);
+        if (!entry) {
+          entry = {
+            slug: targetSeriesSlug,
+            title: newSeriesTitle || targetSeriesSlug,
+            subtitle: "",
+            description: "",
+            layout: newSeriesLayout,
+            cover: newPhotoIds[0],
+            photoIds: [],
+          };
+          seriesList.push(entry);
+          log(`已新建系列：${targetSeriesSlug}`, "ok");
+        }
+        entry.photoIds.push(...newPhotoIds);
+        await putFile(settings, "src/data/series.json", seriesList, sha, `feat(gallery): ${targetSeriesSlug} 新增 ${newPhotoIds.length} 张照片`);
+        log(`已更新系列 ${targetSeriesSlug} 的照片列表`, "ok");
+      } catch (err) {
+        log(`更新系列信息失败：${(err as Error).message}`, "error");
+      }
+    }
+
+    if (newPhotoIds.length > 0) {
+      log("全部完成。GitHub Actions 正在重新构建，稍等片刻刷新网站即可看到新照片。", "ok");
+    }
+  });
+</script>

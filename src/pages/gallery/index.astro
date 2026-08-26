@@ -1,0 +1,120 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getAllSeries, getSeriesCover } from "../../lib/content";
+import { withBase } from "../../lib/url";
+
+const series = getAllSeries();
+---
+
+<BaseLayout title="画廊 · 回声画廊">
+  <section class="wrap header">
+    <p class="eyebrow">Gallery</p>
+    <h1>系列</h1>
+    <p class="lede">每一组系列都是一次独立的策展，而不是简单的分类。</p>
+  </section>
+
+  <section class="wrap list">
+    {
+      series.map((s) => {
+        const cover = getSeriesCover(s);
+        return (
+          <a class="row" href={withBase(`/gallery/${s.slug}/`)}>
+            <div class="row__image">
+              {cover && (
+                <img src={cover.src} width={cover.width} height={cover.height} alt={cover.alt} loading="lazy" />
+              )}
+            </div>
+            <div class="row__meta">
+              <h2>{s.title} <span>{s.subtitle}</span></h2>
+              <p>{s.description}</p>
+              <span class="row__count">{s.photoIds.length} 张 · {s.layout}</span>
+            </div>
+          </a>
+        );
+      })
+    }
+  </section>
+</BaseLayout>
+
+<style>
+  .header {
+    padding-block: var(--space-5) var(--space-4);
+  }
+
+  .header h1 {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .lede {
+    color: var(--ink-soft);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--space-6);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: var(--space-3);
+    align-items: center;
+    padding-block: var(--space-3);
+    border-top: 1px solid var(--line);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .list .row:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+
+  @media (min-width: 640px) {
+    .row {
+      grid-template-columns: 220px 1fr;
+    }
+  }
+
+  .row__image {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--bg-raised);
+  }
+
+  .row__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .row:hover .row__image img {
+    transform: scale(1.04);
+  }
+
+  .row__meta h2 {
+    font-size: 1.6rem;
+    font-weight: 400;
+  }
+
+  .row__meta h2 span {
+    color: var(--ink-faint);
+    font-size: 1rem;
+    margin-left: 0.5em;
+  }
+
+  .row__meta p {
+    color: var(--ink-soft);
+    margin-block: 0.5em;
+    max-width: 60ch;
+  }
+
+  .row__count {
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+</style>

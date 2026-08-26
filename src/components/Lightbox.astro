@@ -1,0 +1,169 @@
+---
+---
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lightbox__close" type="button" data-lightbox-close aria-label="关闭">&times;</button>
+  <button class="lightbox__nav lightbox__nav--prev" type="button" data-lightbox-prev aria-label="上一张">&#8249;</button>
+  <button class="lightbox__nav lightbox__nav--next" type="button" data-lightbox-next aria-label="下一张">&#8250;</button>
+  <figure class="lightbox__figure">
+    <img id="lightbox-img" alt="" />
+    <figcaption id="lightbox-caption"></figcaption>
+  </figure>
+</div>
+
+<style>
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: color-mix(in srgb, var(--bg) 96%, black 4%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .lightbox[hidden] {
+    display: none;
+  }
+
+  .lightbox__figure {
+    margin: 0;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .lightbox__figure img {
+    max-width: min(90vw, 1100px);
+    max-height: 78vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.25);
+  }
+
+  .lightbox__figure figcaption {
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  .lightbox__close,
+  .lightbox__nav {
+    position: absolute;
+    background: transparent;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .lightbox__close {
+    top: var(--space-3);
+    right: var(--space-3);
+    font-size: 2rem;
+    font-weight: 300;
+  }
+
+  .lightbox__nav {
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 3rem;
+    font-weight: 300;
+    padding: var(--space-2);
+  }
+
+  .lightbox__nav--prev {
+    left: var(--space-1);
+  }
+
+  .lightbox__nav--next {
+    right: var(--space-1);
+  }
+
+  @media (min-width: 640px) {
+    .lightbox__nav--prev {
+      left: var(--space-3);
+    }
+    .lightbox__nav--next {
+      right: var(--space-3);
+    }
+  }
+</style>
+
+<script>
+  function initLightbox() {
+    const lightbox = document.getElementById("lightbox") as HTMLElement | null;
+    const imgEl = document.getElementById("lightbox-img") as HTMLImageElement | null;
+    const captionEl = document.getElementById("lightbox-caption") as HTMLElement | null;
+    if (!lightbox || !imgEl || !captionEl) return;
+
+    let triggers: HTMLElement[] = [];
+    let currentIndex = 0;
+
+    function collectTriggers(group: Element) {
+      return Array.from(group.querySelectorAll<HTMLElement>("[data-lightbox-trigger]"));
+    }
+
+    function open(group: Element, index: number) {
+      triggers = collectTriggers(group);
+      show(index);
+      lightbox!.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+
+    function show(index: number) {
+      const trigger = triggers[index];
+      if (!trigger) return;
+      currentIndex = index;
+      imgEl!.src = trigger.dataset.src ?? "";
+      imgEl!.alt = trigger.dataset.caption ?? "";
+      captionEl!.textContent = trigger.dataset.caption ?? "";
+    }
+
+    function close() {
+      lightbox!.hidden = true;
+      imgEl!.src = "";
+      document.body.style.overflow = "";
+    }
+
+    function next() {
+      show((currentIndex + 1) % triggers.length);
+    }
+
+    function prev() {
+      show((currentIndex - 1 + triggers.length) % triggers.length);
+    }
+
+    document.querySelectorAll("[data-lightbox-group]").forEach((group) => {
+      group.querySelectorAll<HTMLElement>("[data-lightbox-trigger]").forEach((trigger) => {
+        trigger.addEventListener("click", () => {
+          const index = Number(trigger.dataset.index ?? 0);
+          open(group, index);
+        });
+      });
+    });
+
+    lightbox.querySelector("[data-lightbox-close]")?.addEventListener("click", close);
+    lightbox.querySelector("[data-lightbox-next]")?.addEventListener("click", next);
+    lightbox.querySelector("[data-lightbox-prev]")?.addEventListener("click", prev);
+
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) close();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (lightbox!.hidden) return;
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowLeft") prev();
+    });
+  }
+
+  initLightbox();
+  document.addEventListener("astro:page-load", initLightbox);
+</script>

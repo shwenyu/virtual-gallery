@@ -1,0 +1,70 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PhotoGrid from "../../components/PhotoGrid.astro";
+import Lightbox from "../../components/Lightbox.astro";
+import { getAllSeries, getSeriesBySlug, getSeriesPhotos } from "../../lib/content";
+import { withBase } from "../../lib/url";
+
+export function getStaticPaths() {
+  return getAllSeries().map((s) => ({ params: { slug: s.slug } }));
+}
+
+const { slug } = Astro.params;
+const series = getSeriesBySlug(slug!);
+if (!series) throw new Error(`Series not found: ${slug}`);
+const photos = getSeriesPhotos(series);
+---
+
+<BaseLayout title={`${series.title} · 回声画廊`} description={series.description}>
+  <section class="wrap header">
+    <p class="eyebrow">Series</p>
+    <h1>{series.title} <span>{series.subtitle}</span></h1>
+    <p class="lede">{series.description}</p>
+  </section>
+
+  <section class="wrap">
+    <PhotoGrid photos={photos} layout={series.layout} />
+  </section>
+
+  <nav class="wrap back">
+    <a href={withBase("/gallery/")}>&larr; 返回所有系列</a>
+  </nav>
+
+  <Lightbox />
+</BaseLayout>
+
+<style>
+  .header {
+    padding-block: var(--space-5) var(--space-4);
+    max-width: 720px;
+  }
+
+  .header h1 {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .header h1 span {
+    color: var(--ink-faint);
+    font-size: 1.2rem;
+    margin-left: 0.5em;
+  }
+
+  .lede {
+    color: var(--ink-soft);
+  }
+
+  .back {
+    padding-block: var(--space-4) var(--space-6);
+  }
+
+  .back a {
+    text-decoration: none;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .back a:hover {
+    color: var(--ink);
+  }
+</style>
