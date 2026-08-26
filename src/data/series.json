@@ -1,20 +1,5 @@
 [
   {
-    "slug": "silence",
-    "title": "Silence",
-    "subtitle": "静",
-    "description": "关于独处与留白的一组影像。声音退场之后，光线、质地与等待本身成为主角。",
-    "layout": "editorial",
-    "cover": "p003",
-    "photoIds": [
-      "p003",
-      "p007",
-      "p009",
-      "p012",
-      "p001"
-    ]
-  },
-  {
     "slug": "terrain",
     "title": "Terrain",
     "subtitle": "地势",
