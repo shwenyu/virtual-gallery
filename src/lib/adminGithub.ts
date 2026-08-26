@@ -42,8 +42,15 @@ function b64DecodeUtf8(b64: string) {
 }
 
 export async function getFile<T = unknown>(settings: AdminSettings, path: string): Promise<{ sha: string; content: T }> {
-  const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${settings.branch}`;
-  const res = await fetch(url, { headers: ghHeaders(settings.token) });
+  // The cache buster and no-cache header matter: without them a read issued right
+  // after a write is often served a copy that predates it.
+  const url =
+    `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}` +
+    `?ref=${settings.branch}&_=${Date.now()}`;
+  const res = await fetch(url, {
+    headers: { ...ghHeaders(settings.token), "Cache-Control": "no-cache" },
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error(`读取 ${path} 失败：${res.status} ${await res.text()}`);
   const data = await res.json();
   return { sha: data.sha as string, content: JSON.parse(b64DecodeUtf8(data.content)) as T };
@@ -72,13 +79,31 @@ export async function putFile(settings: AdminSettings, path: string, content: un
 }
 
 /**
- * Read → mutate → write, retrying the whole cycle when GitHub rejects a stale sha.
+ * What we last successfully wrote, per path: the sha GitHub returned for that
+ * write plus the exact content we sent. This is the key to consecutive edits.
  *
- * Every write has to go through this rather than a bare getFile/putFile pair:
- * the contents API can serve a copy that predates our own last write, so back-to-back
- * edits (deleting two series, uploading several photos) otherwise fail with 409 —
- * or, worse, silently overwrite each other. Re-reading before each retry means the
- * mutation is re-applied to whatever is actually in the repo now.
+ * Re-reading before each write does NOT work: the contents API keeps serving the
+ * pre-write copy for a while, so a second edit reads the old sha, gets rejected,
+ * and retrying just re-reads the same stale copy until it gives up. The write
+ * response, by contrast, always carries the authoritative new sha — so after our
+ * own write we build on that instead of asking again.
+ */
+const lastWrite = new Map<string, { sha: string; content: unknown }>();
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+/** Forget cached write state (e.g. before a deliberate reload from the repo). */
+export function forgetCachedWrites(path?: string) {
+  if (path) lastWrite.delete(path);
+  else lastWrite.clear();
+}
+
+/**
+ * Read → mutate → write, safe to call repeatedly in quick succession.
+ *
+ * Uses the sha from our own previous write when we have one, and only falls back
+ * to a network read when we don't (or when GitHub says our basis is genuinely
+ * out of date, which means someone else changed the file).
  */
 export async function updateJsonFile<T>(
   settings: AdminSettings,
@@ -88,19 +113,30 @@ export async function updateJsonFile<T>(
   attempts = 5
 ): Promise<T> {
   let lastError: unknown;
+
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const { sha, content } = await getFile<T>(settings, path);
-    const next = (mutate(content) ?? content) as T;
+    const cached = lastWrite.get(path);
+    const basis = cached
+      ? { sha: cached.sha, content: clone(cached.content) as T }
+      : await getFile<T>(settings, path);
+
+    const next = (mutate(basis.content) ?? basis.content) as T;
+
     try {
-      await putFile(settings, path, next, sha, message);
+      const result = await putFile(settings, path, next, basis.sha, message);
+      const newSha = result?.content?.sha as string | undefined;
+      if (newSha) lastWrite.set(path, { sha: newSha, content: clone(next) });
+      else lastWrite.delete(path);
       return next;
     } catch (err) {
       if (!(err instanceof ConflictError)) throw err;
       lastError = err;
-      // Give the API a moment to stop serving the pre-write copy.
-      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      // Our basis was wrong — drop it so the next attempt reads from the repo.
+      lastWrite.delete(path);
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
     }
   }
+
   throw new Error(`${path} 连续 ${attempts} 次写入都遇到冲突，请稍等几秒后重试。（${(lastError as Error)?.message ?? ""}）`);
 }
 

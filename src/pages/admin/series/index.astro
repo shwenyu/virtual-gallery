@@ -71,7 +71,7 @@ import "../../../styles/admin.css";
 
 
 <script>
-  import { type AdminSettings, getFile, updateJsonFile, loadSettings } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, updateJsonFile, loadSettings, forgetCachedWrites } from "../../../lib/adminGithub";
   import { isUnlocked } from "../../../lib/adminAuth";
   import { extractDominantColor } from "../../../lib/extractColor";
   import { withBase } from "../../../lib/url";
@@ -432,6 +432,7 @@ import "../../../styles/admin.css";
   else window.addEventListener("admin-unlocked", boot);
   window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
   document.getElementById("reload-btn")?.addEventListener("click", () => {
+    forgetCachedWrites(); // an explicit refresh should really re-read the repo
     if (currentSettings) loadAll(currentSettings);
   });
 

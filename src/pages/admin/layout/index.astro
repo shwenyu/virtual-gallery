@@ -30,7 +30,7 @@ import "../../../styles/admin.css";
 </BaseLayout>
 
 <script>
-  import { type AdminSettings, getFile, loadSettings } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, loadSettings, forgetCachedWrites } from "../../../lib/adminGithub";
   import { isUnlocked } from "../../../lib/adminAuth";
   import { withBase } from "../../../lib/url";
 
@@ -84,5 +84,8 @@ import "../../../styles/admin.css";
   if (isUnlocked()) boot();
   else window.addEventListener("admin-unlocked", boot);
   window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
-  document.getElementById("reload-btn")?.addEventListener("click", boot);
+  document.getElementById("reload-btn")?.addEventListener("click", () => {
+    forgetCachedWrites(); // an explicit refresh should really re-read the repo
+    boot();
+  });
 </script>
