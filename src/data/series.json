@@ -59,10 +59,38 @@
     ],
     "canvasRatio": "3 / 2",
     "frames": [
-      { "id": "p004", "x": 4, "y": 6, "w": 44, "h": 50, "z": 1 },
-      { "id": "p001", "x": 50, "y": 4, "w": 24, "h": 34, "z": 2 },
-      { "id": "p009", "x": 76, "y": 4, "w": 20, "h": 60, "z": 3 },
-      { "id": "p006", "x": 50, "y": 40, "w": 24, "h": 24, "z": 4 }
+      {
+        "id": "p004",
+        "x": 4,
+        "y": 6,
+        "w": 44,
+        "h": 50,
+        "z": 1
+      },
+      {
+        "id": "p001",
+        "x": 50,
+        "y": 4,
+        "w": 24,
+        "h": 34,
+        "z": 2
+      },
+      {
+        "id": "p009",
+        "x": 76,
+        "y": 4,
+        "w": 20,
+        "h": 60,
+        "z": 3
+      },
+      {
+        "id": "p006",
+        "x": 50,
+        "y": 40,
+        "w": 24,
+        "h": 24,
+        "z": 4
+      }
     ]
   },
   {
@@ -87,13 +115,16 @@
     "title": "Grassland",
     "subtitle": "",
     "description": "",
-    "layout": "grid",
+    "layout": "flow",
     "cover": "p_jnqpzl67zfhcaojhcq50",
     "photoIds": [
       "p_jnqpzl67zfhcaojhcq50",
       "p_lxstwhd1pnqeyg6zxrto",
       "p_exbeg4h2c82fyx91l6i8",
       "p_g5vtlvsfkns3ozsmpotj"
-    ]
+    ],
+    "flowDirection": "horizontal",
+    "accentColor": "#6e8072",
+    "backgroundMode": "site"
   }
 ]
