@@ -7,7 +7,11 @@
     "alt": "河谷与晨雾",
     "caption": "河谷 · 晨雾未散",
     "capturedAt": "2024-04-02",
-    "tags": ["landscape", "water", "quiet"]
+    "tags": [
+      "landscape",
+      "water",
+      "quiet"
+    ]
   },
   {
     "id": "p002",
@@ -17,7 +21,10 @@
     "alt": "干燥的荒野植被",
     "caption": "荒野 · 午后",
     "capturedAt": "2024-04-03",
-    "tags": ["landscape", "texture"]
+    "tags": [
+      "landscape",
+      "texture"
+    ]
   },
   {
     "id": "p003",
@@ -27,7 +34,10 @@
     "alt": "静卧的犬",
     "caption": "静",
     "capturedAt": "2024-05-11",
-    "tags": ["portrait", "quiet"]
+    "tags": [
+      "portrait",
+      "quiet"
+    ]
   },
   {
     "id": "p004",
@@ -37,7 +47,10 @@
     "alt": "林间光影",
     "caption": "林间 · 光落下来",
     "capturedAt": "2024-05-20",
-    "tags": ["landscape", "light"]
+    "tags": [
+      "landscape",
+      "light"
+    ]
   },
   {
     "id": "p005",
@@ -47,7 +60,10 @@
     "alt": "海边礁石",
     "caption": "礁石 · 退潮",
     "capturedAt": "2024-06-02",
-    "tags": ["seascape", "texture"]
+    "tags": [
+      "seascape",
+      "texture"
+    ]
   },
   {
     "id": "p006",
@@ -57,7 +73,10 @@
     "alt": "雪山轮廓",
     "caption": "雪线之上",
     "capturedAt": "2024-06-15",
-    "tags": ["landscape", "mountain"]
+    "tags": [
+      "landscape",
+      "mountain"
+    ]
   },
   {
     "id": "p007",
@@ -67,7 +86,10 @@
     "alt": "空椅子",
     "caption": "空",
     "capturedAt": "2024-07-01",
-    "tags": ["still-life", "quiet"]
+    "tags": [
+      "still-life",
+      "quiet"
+    ]
   },
   {
     "id": "p008",
@@ -77,7 +99,10 @@
     "alt": "老墙与光斑",
     "caption": "墙 · 剥落的时间",
     "capturedAt": "2024-07-19",
-    "tags": ["texture", "urban"]
+    "tags": [
+      "texture",
+      "urban"
+    ]
   },
   {
     "id": "p009",
@@ -87,7 +112,10 @@
     "alt": "窗边侧影",
     "caption": "窗",
     "capturedAt": "2024-08-04",
-    "tags": ["portrait", "light"]
+    "tags": [
+      "portrait",
+      "light"
+    ]
   },
   {
     "id": "p010",
@@ -97,7 +125,11 @@
     "alt": "湖面倒影",
     "caption": "倒影",
     "capturedAt": "2024-08-22",
-    "tags": ["landscape", "water", "quiet"]
+    "tags": [
+      "landscape",
+      "water",
+      "quiet"
+    ]
   },
   {
     "id": "p011",
@@ -107,7 +139,10 @@
     "alt": "沙丘曲线",
     "caption": "沙丘",
     "capturedAt": "2024-09-03",
-    "tags": ["landscape", "texture"]
+    "tags": [
+      "landscape",
+      "texture"
+    ]
   },
   {
     "id": "p012",
@@ -117,6 +152,19 @@
     "alt": "石阶尽头",
     "caption": "尽头",
     "capturedAt": "2024-09-28",
-    "tags": ["urban", "quiet"]
+    "tags": [
+      "urban",
+      "quiet"
+    ]
+  },
+  {
+    "id": "p_jnqpzl67zfhcaojhcq50",
+    "src": "https://res.cloudinary.com/guwsow6m/image/upload/f_auto,q_auto/v1787709688/jnqpzl67zfhcaojhcq50.jpg",
+    "width": 3169,
+    "height": 3169,
+    "alt": "DSC_2987",
+    "caption": "",
+    "capturedAt": "2026-06-10",
+    "tags": []
   }
 ]
