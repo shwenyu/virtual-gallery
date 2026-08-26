@@ -98,6 +98,7 @@ import "../../../styles/admin.css";
     backgroundMode?: string;
     customBackground?: string;
     frameStyle?: string;
+    updatedAt?: string;
   }
 
   let currentSettings: AdminSettings | null = null;
@@ -324,6 +325,7 @@ import "../../../styles/admin.css";
             target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
             target.customBackground =
               bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
+            target.updatedAt = new Date().toISOString();
           },
           `chore(gallery): 更新系列 ${entry.slug}`
         );
@@ -351,6 +353,7 @@ import "../../../styles/admin.css";
             const target = list.find((s) => s.slug === entry.slug);
             if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
             target.published = nextPublished;
+            target.updatedAt = new Date().toISOString();
           },
           `chore(gallery): ${nextPublished ? "发布" : "取消发布"} ${entry.slug}`
         );
@@ -448,7 +451,17 @@ import "../../../styles/admin.css";
       return;
     }
     // New series start unpublished (shown as "curating") until you explicitly publish them.
-    const entry: SeriesEntry = { slug, title, subtitle, description, layout, cover: "", photoIds: [], published: false };
+    const entry: SeriesEntry = {
+      slug,
+      title,
+      subtitle,
+      description,
+      layout,
+      cover: "",
+      photoIds: [],
+      published: false,
+      updatedAt: new Date().toISOString(),
+    };
     try {
       await updateJsonFile<SeriesEntry[]>(
         currentSettings,

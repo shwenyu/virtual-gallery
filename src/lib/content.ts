@@ -50,6 +50,28 @@ export interface Series {
   customBackground?: string;
   /** Photo corner treatment for this series. Defaults to "square". */
   frameStyle?: FrameStyle;
+  /** ISO timestamp of the last edit, written by the admin. Used to order the homepage. */
+  updatedAt?: string;
+}
+
+/**
+ * Series for the homepage: most recently updated first, capped at `limit`.
+ * Entries without a timestamp sort last but keep their file order, so a gallery
+ * that predates this field still renders in a stable, sensible order.
+ */
+export function getRecentSeries(limit = 3): Series[] {
+  return [...series]
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => {
+      const ta = a.s.updatedAt ? Date.parse(a.s.updatedAt) : NaN;
+      const tb = b.s.updatedAt ? Date.parse(b.s.updatedAt) : NaN;
+      const va = Number.isNaN(ta) ? -Infinity : ta;
+      const vb = Number.isNaN(tb) ? -Infinity : tb;
+      if (va !== vb) return vb - va;
+      return a.i - b.i;
+    })
+    .slice(0, limit)
+    .map(({ s }) => s);
 }
 
 export function isPublished(s: Series): boolean {

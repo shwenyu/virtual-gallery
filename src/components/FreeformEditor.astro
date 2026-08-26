@@ -116,6 +116,15 @@ const { slug } = Astro.props;
     box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.3);
   }
 
+  /* Below this width the grid falls back to a stack, so the saved coordinates
+     aren't what's on screen — editing there would be misleading. */
+  @media (max-width: 640px) {
+    .ff-enter,
+    .ff-editor {
+      display: none !important;
+    }
+  }
+
   /* editing affordances applied to the live grid */
   :global(.photogrid--freeform.is-editing) {
     outline: 2px dashed color-mix(in srgb, var(--accent) 50%, transparent);

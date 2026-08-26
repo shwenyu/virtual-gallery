@@ -297,6 +297,7 @@ import "../../styles/admin.css";
             for (const id of newPhotoIds) {
               if (!entry.photoIds.includes(id)) entry.photoIds.push(id);
             }
+            entry.updatedAt = new Date().toISOString();
           },
           `feat(gallery): ${targetSeriesSlug} 新增 ${newPhotoIds.length} 张照片`
         );

@@ -278,6 +278,40 @@ const { photos, direction = "horizontal", backHref, accentColor, frameStyle = "s
     color: var(--ink-faint);
     letter-spacing: 0.04em;
   }
+
+  @media (max-width: 640px) {
+    .flow {
+      height: min(70vh, 560px);
+    }
+
+    .flow__slide {
+      padding: var(--space-4) var(--space-2) var(--space-5);
+    }
+
+    .flow__frame img {
+      max-height: calc(min(70vh, 560px) - 8rem);
+    }
+
+    .flow__back,
+    .flow__lights {
+      font-size: 0.72rem;
+      padding: 0.45em 0.7em;
+    }
+
+    .flow__nav {
+      width: 34px;
+      height: 34px;
+      font-size: 1.1rem;
+    }
+  }
+
+  /* Coarse pointers can swipe the track, so the arrows matter less — keep them
+     out of the way of the artwork. */
+  @media (hover: none) and (max-width: 640px) {
+    .flow__nav {
+      opacity: 0.75;
+    }
+  }
 </style>
 
 <script>

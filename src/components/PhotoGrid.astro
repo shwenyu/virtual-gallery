@@ -214,4 +214,28 @@ const freeformItems =
     z-index: var(--z, 0);
     margin: 0;
   }
+
+  /* A hand-placed canvas doesn't survive a phone screen — at 375px the frames
+     shrink to thumbnails. Below this width, fall back to a readable stack and
+     let each photo keep its own proportions. */
+  @media (max-width: 640px) {
+    .photogrid--freeform {
+      position: static;
+      aspect-ratio: auto;
+      background: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    .photogrid--freeform .photogrid__item {
+      position: static;
+      width: 100%;
+      height: auto;
+    }
+
+    .photogrid--freeform .photogrid__frame {
+      aspect-ratio: 4 / 3;
+    }
+  }
 </style>

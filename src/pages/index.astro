@@ -1,9 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { getAllSeries, getSeriesCover, isPublished } from "../lib/content";
+import { getAllSeries, getRecentSeries, getSeriesCover, isPublished } from "../lib/content";
 import { withBase } from "../lib/url";
 
-const series = getAllSeries();
+const series = getRecentSeries(3);
+const totalSeries = getAllSeries().length;
 ---
 
 <BaseLayout title="回声画廊 · 个人摄影作品集">
@@ -15,6 +16,13 @@ const series = getAllSeries();
       每一组系列都有自己的节奏、留白与呼吸。
     </p>
     <a class="button" href={withBase("/gallery/")}>进入画廊</a>
+  </section>
+
+  <section class="wrap section-head">
+    <h2>最新展出</h2>
+    {totalSeries > series.length && (
+      <a class="section-head__more" href={withBase("/gallery/")}>查看全部 {totalSeries} 个系列 &rarr;</a>
+    )}
   </section>
 
   <section class="series-list wrap">
@@ -66,13 +74,44 @@ const series = getAllSeries();
     margin-bottom: var(--space-3);
   }
 
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-3);
+  }
+
+  .section-head h2 {
+    font-size: 1.4rem;
+  }
+
+  .section-head__more {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .section-head__more:hover {
+    color: var(--ink);
+  }
+
   .series-list {
     display: grid;
     gap: var(--space-4);
     padding-bottom: var(--space-6);
   }
 
-  @media (min-width: 760px) {
+  /* Tablets get two across before the full three-up on desktop. */
+  @media (min-width: 560px) {
+    .series-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 860px) {
     .series-list {
       grid-template-columns: repeat(3, 1fr);
     }
