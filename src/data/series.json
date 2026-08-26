@@ -125,6 +125,7 @@
     ],
     "flowDirection": "horizontal",
     "accentColor": "#6e8072",
-    "backgroundMode": "accent"
+    "backgroundMode": "accent",
+    "frameStyle": "rounded"
   }
 ]
