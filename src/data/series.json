@@ -113,7 +113,7 @@
   {
     "slug": "Grassland",
     "title": "Grassland",
-    "subtitle": "",
+    "subtitle": "在草原",
     "description": "",
     "layout": "flow",
     "cover": "p_jnqpzl67zfhcaojhcq50",
@@ -125,6 +125,6 @@
     ],
     "flowDirection": "horizontal",
     "accentColor": "#6e8072",
-    "backgroundMode": "site"
+    "backgroundMode": "accent"
   }
 ]
