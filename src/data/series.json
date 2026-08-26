@@ -1,21 +1,5 @@
 [
   {
-    "slug": "terrain",
-    "title": "Terrain",
-    "subtitle": "地势",
-    "description": "山脊、河谷与海岸线——记录地表在不同尺度下的形状。",
-    "layout": "masonry",
-    "cover": "p006",
-    "photoIds": [
-      "p006",
-      "p002",
-      "p011",
-      "p005",
-      "p010",
-      "p004"
-    ]
-  },
-  {
     "slug": "surface",
     "title": "Surface",
     "subtitle": "表面",
