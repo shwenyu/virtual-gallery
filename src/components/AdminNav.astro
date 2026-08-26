@@ -12,36 +12,77 @@ const items = [
 ---
 
 <nav class="admin-nav">
-  {
-    items.map((item) => (
-      <a href={withBase(item.href)} aria-current={item.key === active ? "page" : undefined}>
-        {item.label}
-      </a>
-    ))
-  }
+  <div class="admin-nav__links">
+    {
+      items.map((item) => (
+        <a href={withBase(item.href)} aria-current={item.key === active ? "page" : undefined}>
+          {item.label}
+        </a>
+      ))
+    }
+  </div>
+  <button type="button" class="admin-nav__logout" id="admin-logout">退出登录</button>
 </nav>
 
 <style>
   .admin-nav {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
+    flex-wrap: wrap;
     margin-top: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--line);
     font-size: 0.85rem;
   }
 
-  .admin-nav a {
-    text-decoration: none;
-    color: var(--ink-faint);
-    padding-bottom: 0.3em;
-    border-bottom: 2px solid transparent;
+  .admin-nav__links {
+    display: flex;
+    gap: var(--space-3);
   }
 
-  .admin-nav a:hover {
+  .admin-nav__links a {
+    text-decoration: none;
+    color: var(--ink-faint);
+    padding-bottom: 0.35em;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease;
+  }
+
+  .admin-nav__links a:hover {
     color: var(--ink-soft);
   }
 
-  .admin-nav a[aria-current="page"] {
+  .admin-nav__links a[aria-current="page"] {
     color: var(--ink);
     border-bottom-color: var(--ink);
   }
+
+  .admin-nav__logout {
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 980px;
+    padding: 0.4em 0.9em;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .admin-nav__logout:hover {
+    color: var(--ink);
+    border-color: var(--ink-soft);
+  }
 </style>
+
+<script>
+  import { lock } from "../lib/adminAuth";
+  import { withBase } from "../lib/url";
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => {
+    lock();
+    location.href = withBase("/admin/login/");
+  });
+</script>

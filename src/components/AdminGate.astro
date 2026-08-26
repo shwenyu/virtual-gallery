@@ -1,174 +1,32 @@
 ---
-// Wraps admin page content behind a passphrase prompt. See src/lib/adminAuth.ts
-// for why this is a deterrent rather than real security.
+// Guards an admin page: if the session isn't unlocked, redirect to the login
+// page and never reveal the content. See src/lib/adminAuth.ts for why this is a
+// deterrent rather than real security.
 ---
-
-<div class="gate" id="admin-gate" hidden>
-  <div class="gate__box">
-    <p class="eyebrow">Admin</p>
-    <h2 id="gate-title">管理员登录</h2>
-    <p class="gate__note" id="gate-note">请输入管理口令以进入后台。</p>
-    <form id="gate-form">
-      <label>
-        口令
-        <input type="password" id="gate-pass" autocomplete="current-password" required />
-      </label>
-      <label id="gate-confirm-wrap" hidden>
-        再输入一次
-        <input type="password" id="gate-pass2" autocomplete="new-password" />
-      </label>
-      <button type="submit" class="button" id="gate-submit">进入</button>
-      <span class="gate__status" id="gate-status"></span>
-    </form>
-    <p class="gate__fineprint">
-      提示：这道口令只是把后台界面藏起来，防止别人误入。真正的安全来自于——
-      没有你的 GitHub 令牌，任何人都无法改动这个网站，而令牌只存在你自己的浏览器里。
-    </p>
-    <button type="button" class="gate__reset" id="gate-reset">忘记口令？重置（会同时清空已保存的连接设置）</button>
-  </div>
-</div>
 
 <div id="admin-content" hidden>
   <slot />
 </div>
 
 <style>
-  .gate {
-    display: flex;
-    justify-content: center;
-    padding-block: var(--space-6);
-  }
-
-  .gate__box {
-    width: min(420px, 100%);
-    padding: var(--space-4);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  .gate__box h2 {
-    font-size: 1.5rem;
-    margin-block: var(--space-1) var(--space-2);
-  }
-
-  .gate__note {
-    color: var(--ink-soft);
-    font-size: 0.88rem;
-    margin-bottom: var(--space-3);
-  }
-
-  .gate label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35em;
-    font-size: 0.82rem;
-    color: var(--ink-soft);
-    margin-bottom: var(--space-2);
-  }
-
-  .gate input {
-    font: inherit;
-    padding: 0.55em 0.7em;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  .gate__status {
-    display: block;
-    margin-top: var(--space-2);
-    font-size: 0.8rem;
-    color: #a4402f;
-  }
-
-  .gate__fineprint {
-    margin-top: var(--space-3);
-    font-size: 0.75rem;
-    line-height: 1.7;
-    color: var(--ink-faint);
-  }
-
-  .gate__reset {
-    margin-top: var(--space-2);
-    background: none;
-    border: 0;
-    padding: 0;
-    font-size: 0.72rem;
-    color: var(--ink-faint);
-    text-decoration: underline;
-    cursor: pointer;
+  /* An author `display` rule would override the `hidden` attribute, so keep this
+     explicit: hidden must win regardless of what else targets this element. */
+  #admin-content[hidden] {
+    display: none !important;
   }
 </style>
 
 <script>
-  import { hasPassphrase, setPassphrase, verifyPassphrase, isUnlocked, unlock, resetAdmin } from "../lib/adminAuth";
+  import { isUnlocked } from "../lib/adminAuth";
+  import { withBase } from "../lib/url";
 
-  const gate = document.getElementById("admin-gate")!;
   const content = document.getElementById("admin-content")!;
-  const form = document.getElementById("gate-form") as HTMLFormElement;
-  const passInput = document.getElementById("gate-pass") as HTMLInputElement;
-  const pass2Input = document.getElementById("gate-pass2") as HTMLInputElement;
-  const confirmWrap = document.getElementById("gate-confirm-wrap")!;
-  const statusEl = document.getElementById("gate-status")!;
-  const titleEl = document.getElementById("gate-title")!;
-  const noteEl = document.getElementById("gate-note")!;
-  const submitBtn = document.getElementById("gate-submit")!;
-
-  const firstRun = !hasPassphrase();
-
-  function reveal() {
-    gate.hidden = true;
-    content.hidden = false;
-    window.dispatchEvent(new CustomEvent("admin-unlocked"));
-  }
 
   if (isUnlocked()) {
-    reveal();
+    content.hidden = false;
+    window.dispatchEvent(new CustomEvent("admin-unlocked"));
   } else {
-    gate.hidden = false;
-    if (firstRun) {
-      titleEl.textContent = "设置管理口令";
-      noteEl.textContent = "这是你第一次进入后台，请设置一个口令。它只保存在这台设备上。";
-      confirmWrap.hidden = false;
-      pass2Input.required = true;
-      submitBtn.textContent = "设置并进入";
-      passInput.autocomplete = "new-password";
-    }
+    const next = location.pathname + location.search;
+    location.replace(`${withBase("/admin/login/")}?next=${encodeURIComponent(next)}`);
   }
-
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    statusEl.textContent = "";
-    const pass = passInput.value;
-
-    if (firstRun) {
-      if (pass.length < 4) {
-        statusEl.textContent = "口令太短了，至少 4 个字符。";
-        return;
-      }
-      if (pass !== pass2Input.value) {
-        statusEl.textContent = "两次输入的口令不一致。";
-        return;
-      }
-      await setPassphrase(pass);
-      unlock();
-      reveal();
-      return;
-    }
-
-    if (await verifyPassphrase(pass)) {
-      unlock();
-      reveal();
-    } else {
-      statusEl.textContent = "口令不正确。";
-      passInput.value = "";
-    }
-  });
-
-  document.getElementById("gate-reset")?.addEventListener("click", () => {
-    if (confirm("重置会清空本机保存的口令和 Cloudinary / GitHub 连接设置，确定吗？")) {
-      resetAdmin();
-      location.reload();
-    }
-  });
 </script>
