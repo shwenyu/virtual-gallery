@@ -1,19 +1,5 @@
 [
   {
-    "slug": "surface",
-    "title": "Surface",
-    "subtitle": "表面",
-    "description": "墙、沙与水面——一组关于质地与时间痕迹的近距离观察。",
-    "layout": "grid",
-    "cover": "p008",
-    "photoIds": [
-      "p008",
-      "p011",
-      "p005",
-      "p002"
-    ]
-  },
-  {
     "slug": "loose-notes",
     "title": "Loose Notes",
     "subtitle": "散记",
