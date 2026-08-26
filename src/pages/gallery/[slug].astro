@@ -4,6 +4,7 @@ import PhotoGrid from "../../components/PhotoGrid.astro";
 import Lightbox from "../../components/Lightbox.astro";
 import CuratingCurtain from "../../components/CuratingCurtain.astro";
 import FlowViewer from "../../components/FlowViewer.astro";
+import FreeformEditor from "../../components/FreeformEditor.astro";
 import { getAllSeries, getSeriesBySlug, getSeriesPhotos, isPublished, resolveSeriesBackground } from "../../lib/content";
 import { withBase } from "../../lib/url";
 
@@ -17,6 +18,7 @@ if (!series) throw new Error(`Series not found: ${slug}`);
 const photos = getSeriesPhotos(series);
 const published = isPublished(series);
 const isFlow = series.layout === "flow";
+const isFreeform = series.layout === "freeform";
 const background = resolveSeriesBackground(series);
 ---
 
@@ -39,9 +41,19 @@ const background = resolveSeriesBackground(series);
           direction={series.flowDirection}
           backHref={withBase("/gallery/")}
           accentColor={series.accentColor}
+          frameStyle={series.frameStyle}
         />
       ) : (
-        <PhotoGrid photos={photos} layout={series.layout} frames={series.frames} canvasRatio={series.canvasRatio} />
+        <>
+          {isFreeform && <FreeformEditor slug={series.slug} />}
+          <PhotoGrid
+            photos={photos}
+            layout={series.layout}
+            frames={series.frames}
+            canvasRatio={series.canvasRatio}
+            frameStyle={series.frameStyle}
+          />
+        </>
       )
     }
   </section>

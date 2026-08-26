@@ -2,439 +2,87 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
 import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
+import AdminGate from "../../../components/AdminGate.astro";
+import "../../../styles/admin.css";
 ---
 
-<BaseLayout title="自由排版 · 回声画廊" description="拖拽缩放，手工编排某个系列的照片位置" noindex>
+<BaseLayout title="自由排版 · 回声画廊" description="直接在系列页面上拖拽编排照片" noindex>
+  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>自由排版</h1>
     <p class="note">
-      选择一个系列后，拖动照片改变位置，拖右下角改变大小。保存后该系列的排版会切换为
-      <code>freeform</code>，展示页会按这里摆放的位置还原。加入/移除照片请去
-      <a href="/admin/series/">系列管理</a>。
+      采用 <code>freeform</code> 排版的系列，可以直接在它自己的画廊页面上拖动照片、
+      拉右下角改大小，改完就地保存——所见即所得。下面列出了所有 freeform 系列。
     </p>
     <AdminNav active="layout" />
 
+    <div class="toolbar">
+      <span class="status" id="load-status">载入中…</span>
+      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
+    </div>
+
+    <div id="freeform-list"></div>
+
     <AdminSettingsPanel />
-
-    <div class="panel" id="controls">
-      <div class="grid2">
-        <label>
-          选择系列
-          <select id="series-select"><option value="">载入设置后自动读取…</option></select>
-        </label>
-        <label>
-          画布比例
-          <select id="ratio-select">
-            <option value="3 / 2">3 : 2（横）</option>
-            <option value="16 / 9">16 : 9（宽银幕）</option>
-            <option value="4 / 3">4 : 3</option>
-            <option value="1 / 1">1 : 1（方形）</option>
-            <option value="2 / 3">2 : 3（竖）</option>
-          </select>
-        </label>
-      </div>
-      <div class="toolbar">
-        <button type="button" class="button" id="arrange-btn">按网格重新摆放</button>
-        <button type="button" class="button" id="save-layout-btn">保存排版</button>
-        <span class="status" id="layout-status"></span>
-      </div>
-    </div>
-
-    <div class="canvas-wrap">
-      <div class="canvas" id="canvas"></div>
-    </div>
-
-    <div class="panel log" id="log" hidden>
-      <h2>执行日志</h2>
-      <ol id="log-list"></ol>
-    </div>
   </section>
+  </AdminGate>
 </BaseLayout>
 
-<style>
-  .admin {
-    padding-block: var(--space-5) var(--space-6);
-    max-width: 980px;
-  }
-
-  .admin h1 {
-    font-size: clamp(2rem, 4vw, 2.6rem);
-    margin-block: var(--space-1) var(--space-2);
-  }
-
-  .note {
-    color: var(--ink-soft);
-    font-size: 0.9rem;
-    line-height: 1.7;
-  }
-
-  .note a {
-    color: var(--accent);
-  }
-
-  .panel {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  .grid2 {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  @media (min-width: 640px) {
-    .grid2 {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35em;
-    font-size: 0.82rem;
-    color: var(--ink-soft);
-    margin-bottom: var(--space-2);
-  }
-
-  input, select {
-    font: inherit;
-    padding: 0.55em 0.7em;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
-  }
-
-  .status {
-    font-size: 0.8rem;
-    color: var(--ink-faint);
-  }
-
-  .canvas-wrap {
-    margin-top: var(--space-4);
-  }
-
-  .canvas {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 3 / 2;
-    background: repeating-conic-gradient(var(--bg-raised) 0% 25%, var(--bg) 0% 50%) 50% / 24px 24px;
-    border: 1px solid var(--line);
-    overflow: hidden;
-    user-select: none;
-    touch-action: none;
-  }
-
-  .canvas__item {
-    position: absolute;
-    box-sizing: border-box;
-    border: 2px solid var(--bg);
-    outline: 1px solid var(--line);
-    cursor: grab;
-    overflow: hidden;
-  }
-
-  .canvas__item.dragging {
-    cursor: grabbing;
-    outline: 2px solid var(--accent);
-  }
-
-  .canvas__item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    pointer-events: none;
-  }
-
-  .canvas__handle {
-    position: absolute;
-    right: -1px;
-    bottom: -1px;
-    width: 16px;
-    height: 16px;
-    background: var(--ink);
-    cursor: nwse-resize;
-  }
-
-  .canvas__label {
-    position: absolute;
-    left: 2px;
-    top: 2px;
-    font-size: 0.65rem;
-    background: color-mix(in srgb, var(--ink) 70%, transparent);
-    color: var(--bg);
-    padding: 0.1rem 0.35rem;
-    pointer-events: none;
-  }
-
-  .log ol {
-    padding-left: 1.2em;
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    line-height: 1.9;
-  }
-
-  .log li[data-state="error"] {
-    color: #a4402f;
-  }
-
-  .log li[data-state="ok"] {
-    color: #4b6b4f;
-  }
-</style>
-
 <script>
-  import { type AdminSettings, getFile, putFile } from "../../../lib/adminGithub";
-
-  interface Photo {
-    id: string;
-    src: string;
-    alt: string;
-  }
-
-  interface Frame {
-    id: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    z?: number;
-  }
+  import { type AdminSettings, getFile, loadSettings } from "../../../lib/adminGithub";
+  import { isUnlocked } from "../../../lib/adminAuth";
+  import { withBase } from "../../../lib/url";
 
   interface SeriesEntry {
     slug: string;
     title: string;
+    subtitle?: string;
     layout: string;
     photoIds: string[];
-    frames?: Frame[];
-    canvasRatio?: string;
-  }
-
-  let currentSettings: AdminSettings | null = null;
-  let allPhotos: Photo[] = [];
-  let allSeries: SeriesEntry[] = [];
-  let frames: Frame[] = [];
-  let zCounter = 1;
-
-  const canvas = document.getElementById("canvas") as HTMLElement;
-  const seriesSelect = document.getElementById("series-select") as HTMLSelectElement;
-  const ratioSelect = document.getElementById("ratio-select") as HTMLSelectElement;
-
-  function log(message: string, state: "info" | "ok" | "error" = "info") {
-    const panel = document.getElementById("log")!;
-    const list = document.getElementById("log-list")!;
-    panel.hidden = false;
-    const li = document.createElement("li");
-    li.textContent = message;
-    li.dataset.state = state;
-    list.appendChild(li);
-    li.scrollIntoView({ block: "nearest" });
-  }
-
-  function defaultFrame(index: number): Omit<Frame, "id"> {
-    const col = index % 3;
-    const row = Math.floor(index / 3) % 3;
-    return { x: 4 + col * 30, y: 4 + row * 30, w: 26, h: 26, z: zCounter++ };
-  }
-
-  function renderCanvas() {
-    canvas.innerHTML = "";
-    canvas.style.setProperty("--ratio", ratioSelect.value);
-    (canvas.style as any).aspectRatio = ratioSelect.value;
-
-    for (const frame of frames) {
-      const photo = allPhotos.find((p) => p.id === frame.id);
-      const item = document.createElement("div");
-      item.className = "canvas__item";
-      item.style.left = frame.x + "%";
-      item.style.top = frame.y + "%";
-      item.style.width = frame.w + "%";
-      item.style.height = frame.h + "%";
-      item.style.zIndex = String(frame.z ?? 1);
-      item.dataset.id = frame.id;
-
-      const img = document.createElement("img");
-      img.src = photo?.src ?? "";
-      img.alt = "";
-      item.appendChild(img);
-
-      const label = document.createElement("span");
-      label.className = "canvas__label";
-      label.textContent = frame.id;
-      item.appendChild(label);
-
-      const handle = document.createElement("div");
-      handle.className = "canvas__handle";
-      item.appendChild(handle);
-
-      attachDrag(item, frame);
-      attachResize(handle, item, frame);
-
-      canvas.appendChild(item);
-    }
-  }
-
-  function attachDrag(item: HTMLElement, frame: Frame) {
-    item.addEventListener("pointerdown", (e) => {
-      if ((e.target as HTMLElement).classList.contains("canvas__handle")) return;
-      e.preventDefault();
-      try {
-        item.setPointerCapture(e.pointerId);
-      } catch {}
-      item.classList.add("dragging");
-      frame.z = zCounter++;
-      item.style.zIndex = String(frame.z);
-
-      const rect = canvas.getBoundingClientRect();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const origX = frame.x;
-      const origY = frame.y;
-
-      function onMove(ev: PointerEvent) {
-        const dxPct = ((ev.clientX - startX) / rect.width) * 100;
-        const dyPct = ((ev.clientY - startY) / rect.height) * 100;
-        frame.x = clamp(origX + dxPct, 0, 100 - frame.w);
-        frame.y = clamp(origY + dyPct, 0, 100 - frame.h);
-        item.style.left = frame.x + "%";
-        item.style.top = frame.y + "%";
-      }
-
-      function onUp(ev: PointerEvent) {
-        item.classList.remove("dragging");
-        try {
-          item.releasePointerCapture(ev.pointerId);
-        } catch {}
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-      }
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-    });
-  }
-
-  function attachResize(handle: HTMLElement, item: HTMLElement, frame: Frame) {
-    handle.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      try {
-        handle.setPointerCapture(e.pointerId);
-      } catch {}
-
-      const rect = canvas.getBoundingClientRect();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const origW = frame.w;
-      const origH = frame.h;
-
-      function onMove(ev: PointerEvent) {
-        const dwPct = ((ev.clientX - startX) / rect.width) * 100;
-        const dhPct = ((ev.clientY - startY) / rect.height) * 100;
-        frame.w = clamp(origW + dwPct, 6, 100 - frame.x);
-        frame.h = clamp(origH + dhPct, 6, 100 - frame.y);
-        item.style.width = frame.w + "%";
-        item.style.height = frame.h + "%";
-      }
-
-      function onUp(ev: PointerEvent) {
-        try {
-          handle.releasePointerCapture(ev.pointerId);
-        } catch {}
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-      }
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-    });
-  }
-
-  function clamp(v: number, min: number, max: number) {
-    return Math.max(min, Math.min(max, v));
-  }
-
-  function loadSeriesIntoEditor(slug: string) {
-    const entry = allSeries.find((s) => s.slug === slug);
-    if (!entry) return;
-    ratioSelect.value = entry.canvasRatio ?? "3 / 2";
-    frames = entry.photoIds.map((id, i) => {
-      const existing = entry.frames?.find((f) => f.id === id);
-      return existing ? { ...existing } : { id, ...defaultFrame(i) };
-    });
-    renderCanvas();
-  }
-
-  ratioSelect.addEventListener("change", renderCanvas);
-
-  document.getElementById("arrange-btn")?.addEventListener("click", () => {
-    frames = frames.map((f, i) => ({ id: f.id, ...defaultFrame(i) }));
-    renderCanvas();
-  });
-
-  seriesSelect.addEventListener("change", () => loadSeriesIntoEditor(seriesSelect.value));
-
-  document.getElementById("save-layout-btn")?.addEventListener("click", async () => {
-    if (!currentSettings) {
-      log("请先在「连接设置」中填写并保存 GitHub 信息。", "error");
-      return;
-    }
-    const slug = seriesSelect.value;
-    if (!slug) {
-      log("请先选择一个系列。", "error");
-      return;
-    }
-    const statusEl = document.getElementById("layout-status")!;
-    statusEl.textContent = "保存中…";
-    try {
-      const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-      const target = list.find((s) => s.slug === slug);
-      if (!target) throw new Error("在仓库里没找到这个系列");
-      target.layout = "freeform";
-      target.canvasRatio = ratioSelect.value;
-      target.frames = frames.map((f) => ({ id: f.id, x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h), z: f.z }));
-      await putFile(currentSettings, "src/data/series.json", list, sha, `chore(gallery): 更新 ${slug} 的自由排版`);
-      statusEl.textContent = "已保存。";
-      log(`已保存 ${slug} 的自由排版`, "ok");
-    } catch (err) {
-      statusEl.textContent = `保存失败：${(err as Error).message}`;
-      log(`保存排版失败：${(err as Error).message}`, "error");
-    }
-  });
-
-  function round(n: number) {
-    return Math.round(n * 10) / 10;
   }
 
   async function loadAll(settings: AdminSettings) {
-    if (!settings.owner || !settings.repo || !settings.token) return;
-    currentSettings = settings;
+    const statusEl = document.getElementById("load-status")!;
+    const container = document.getElementById("freeform-list")!;
+    if (!settings.owner || !settings.repo || !settings.token) {
+      statusEl.textContent = "请先在下方「连接设置」里填写 GitHub 信息。";
+      return;
+    }
+    statusEl.textContent = "载入中…";
     try {
-      const [{ content: photos }, { content: seriesList }] = await Promise.all([
-        getFile<Photo[]>(settings, "src/data/photos.json"),
-        getFile<SeriesEntry[]>(settings, "src/data/series.json"),
-      ]);
-      allPhotos = photos;
-      allSeries = seriesList;
-      seriesSelect.innerHTML = seriesList
-        .map((s) => `<option value="${s.slug}">${s.title} (${s.slug})</option>`)
-        .join("");
-      if (seriesList.length) loadSeriesIntoEditor(seriesList[0].slug);
+      const { content: list } = await getFile<SeriesEntry[]>(settings, "src/data/series.json");
+      const freeform = list.filter((s) => s.layout === "freeform");
+      container.innerHTML = "";
+      if (freeform.length === 0) {
+        statusEl.textContent = "还没有 freeform 系列。去「系列管理」把某个系列的排版改成 freeform 即可。";
+        return;
+      }
+      for (const s of freeform) {
+        const card = document.createElement("div");
+        card.className = "series-card";
+        card.innerHTML = `
+          <div class="series-card__header">
+            <h2>${s.title || s.slug}</h2>
+            <span class="series-card__slug">${s.photoIds.length} 张</span>
+          </div>
+          <div class="series-card__actions" style="border-top:0;padding-top:0;margin-top:0;">
+            <a class="button" href="${withBase(`/gallery/${s.slug}/?edit=1`)}">打开并编辑排版</a>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+      statusEl.textContent = `${freeform.length} 个 freeform 系列。`;
     } catch (err) {
-      log(`载入失败：${(err as Error).message}`, "error");
+      statusEl.textContent = `载入失败：${(err as Error).message}`;
     }
   }
 
-  window.addEventListener("admin-settings-ready", (e) => loadAll((e as CustomEvent).detail));
+  function boot() {
+    loadAll(loadSettings());
+  }
+  if (isUnlocked()) boot();
+  else window.addEventListener("admin-unlocked", boot);
   window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
+  document.getElementById("reload-btn")?.addEventListener("click", boot);
 </script>

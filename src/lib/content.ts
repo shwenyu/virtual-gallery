@@ -15,6 +15,7 @@ export interface Photo {
 export type SeriesLayout = "masonry" | "grid" | "editorial" | "freeform" | "flow";
 export type FlowDirection = "horizontal" | "vertical";
 export type BackgroundMode = "site" | "accent" | "custom";
+export type FrameStyle = "square" | "rounded";
 
 export interface Frame {
   id: string;
@@ -47,6 +48,8 @@ export interface Series {
   backgroundMode?: BackgroundMode;
   /** Only used when backgroundMode is "custom". */
   customBackground?: string;
+  /** Photo corner treatment for this series. Defaults to "square". */
+  frameStyle?: FrameStyle;
 }
 
 export function isPublished(s: Series): boolean {
@@ -58,7 +61,9 @@ export function resolveSeriesBackground(s: Series): string | undefined {
   const mode = s.backgroundMode ?? "site";
   if (mode === "custom" && s.customBackground) return s.customBackground;
   if (mode === "accent" && s.accentColor) {
-    return `color-mix(in srgb, ${s.accentColor} 14%, var(--bg) 86%)`;
+    // Mix against --bg-base, not --bg: this value is assigned to --bg, and a
+    // self-reference would make the custom property invalid (background vanishes).
+    return `color-mix(in srgb, ${s.accentColor} 14%, var(--bg-base) 86%)`;
   }
   return undefined;
 }

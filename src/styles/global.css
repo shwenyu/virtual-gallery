@@ -1,7 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=Allura&display=swap");
 
 :root {
-  --bg: #f2f0eb;
+  /* --bg-base is the untinted site background. A series page may override --bg
+     with a tint mixed against --bg-base; mixing against --bg itself would be a
+     self-reference, which makes the whole declaration invalid. */
+  --bg-base: #f2f0eb;
+  --bg: var(--bg-base);
   --bg-raised: #ebe8e1;
   --ink: #23221f;
   --ink-soft: #55524b;
@@ -62,6 +66,41 @@ h1, h2, h3 {
   font-weight: 400;
   letter-spacing: -0.01em;
   margin: 0;
+}
+
+/* Gallery-lighting mode: the whole page becomes a dim grey room. Applied to
+   <html> by the flow viewer so the header and footer dim along with the artwork. */
+:root.lights-on {
+  --bg: #3a3936;
+  --bg-raised: #423f3b;
+  --ink: #ece8e0;
+  --ink-soft: #b6b1a7;
+  --ink-faint: #8b867d;
+  --line: #56524c;
+  color-scheme: dark;
+}
+
+/* !important is needed here: a series can set its own --bg inline on <body>
+   (the accent tint), and an inline declaration otherwise wins over this rule. */
+:root.lights-on body {
+  --bg: #3a3936 !important;
+  --bg-raised: #423f3b !important;
+  --ink: #ece8e0 !important;
+  --ink-soft: #b6b1a7 !important;
+  --ink-faint: #8b867d !important;
+  --line: #56524c !important;
+  background: var(--bg);
+}
+
+:root.lights-on .site-nav {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+:root.lights-on,
+:root.lights-on body,
+:root.lights-on .site-nav,
+:root.lights-on .site-footer {
+  transition: background 0.45s ease, color 0.45s ease;
 }
 
 .badge {

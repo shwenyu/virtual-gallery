@@ -1,0 +1,331 @@
+---
+// Turns a rendered .photogrid--freeform on a gallery page into a live editor
+// when the admin is unlocked. Inert for ordinary visitors.
+interface Props {
+  slug: string;
+}
+const { slug } = Astro.props;
+---
+
+<div class="ff-editor" id="ff-editor" data-slug={slug} hidden>
+  <div class="ff-editor__bar">
+    <span class="ff-editor__tag">编辑排版中</span>
+    <label class="ff-editor__ratio">
+      画布比例
+      <select id="ff-ratio">
+        <option value="3 / 2">3 : 2</option>
+        <option value="16 / 9">16 : 9</option>
+        <option value="4 / 3">4 : 3</option>
+        <option value="1 / 1">1 : 1</option>
+        <option value="2 / 3">2 : 3</option>
+      </select>
+    </label>
+    <button type="button" class="ff-btn" id="ff-arrange">重新摆放</button>
+    <button type="button" class="ff-btn ff-btn--primary" id="ff-save">保存排版</button>
+    <button type="button" class="ff-btn" id="ff-exit">退出编辑</button>
+    <span class="ff-editor__status" id="ff-status"></span>
+  </div>
+</div>
+
+<button type="button" class="ff-enter" id="ff-enter" hidden>编辑排版</button>
+
+<style>
+  .ff-editor {
+    position: sticky;
+    top: 56px;
+    z-index: 30;
+    margin-bottom: var(--space-2);
+  }
+
+  .ff-editor__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-raised) 92%, transparent);
+    backdrop-filter: blur(8px);
+    font-size: 0.8rem;
+  }
+
+  .ff-editor__tag {
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .ff-editor__ratio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--ink-faint);
+    font-size: 0.75rem;
+  }
+
+  .ff-editor__ratio select {
+    font: inherit;
+    font-size: 0.78rem;
+    padding: 0.3em 0.5em;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .ff-btn,
+  .ff-enter {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1;
+    padding: 0.6em 1em;
+    border-radius: 980px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .ff-btn:hover {
+    background: color-mix(in srgb, var(--ink) 8%, var(--bg));
+  }
+
+  .ff-btn--primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+
+  .ff-btn--primary:hover {
+    background: color-mix(in srgb, var(--ink) 84%, var(--bg));
+    color: var(--bg);
+  }
+
+  .ff-editor__status {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+  }
+
+  .ff-enter {
+    position: fixed;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 40;
+    box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.3);
+  }
+
+  /* editing affordances applied to the live grid */
+  :global(.photogrid--freeform.is-editing) {
+    outline: 2px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+    outline-offset: 4px;
+  }
+
+  :global(.photogrid--freeform.is-editing .photogrid__item) {
+    cursor: grab;
+  }
+
+  :global(.photogrid--freeform.is-editing .photogrid__item.is-dragging) {
+    cursor: grabbing;
+    outline: 2px solid var(--accent);
+  }
+
+  :global(.photogrid--freeform.is-editing .photogrid__frame) {
+    pointer-events: none;
+  }
+
+  :global(.ff-handle) {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 18px;
+    height: 18px;
+    background: var(--ink);
+    border: 2px solid var(--bg);
+    border-radius: 4px;
+    cursor: nwse-resize;
+    z-index: 2;
+  }
+</style>
+
+<script>
+  import { type AdminSettings, getFile, putFile, loadSettings } from "../lib/adminGithub";
+  import { isUnlocked } from "../lib/adminAuth";
+
+  interface Frame {
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    z?: number;
+  }
+
+  function initFreeformEditor() {
+    const editor = document.getElementById("ff-editor") as HTMLElement | null;
+    const enterBtn = document.getElementById("ff-enter") as HTMLButtonElement | null;
+    const grid = document.querySelector(".photogrid--freeform") as HTMLElement | null;
+    if (!editor || !enterBtn || !grid) return;
+    if (!isUnlocked()) return; // ordinary visitors never see the editor
+
+    const slug = editor.dataset.slug!;
+    const ratioSelect = document.getElementById("ff-ratio") as HTMLSelectElement;
+    const statusEl = document.getElementById("ff-status")!;
+    const items = Array.from(grid.querySelectorAll<HTMLElement>(".photogrid__item"));
+
+    let frames: Frame[] = [];
+    let zCounter = items.length + 1;
+    let editing = false;
+
+    function readFramesFromDom() {
+      frames = items.map((item, i) => ({
+        id: item.dataset.photoId ?? "",
+        x: parseFloat(item.style.getPropertyValue("--x")) || 0,
+        y: parseFloat(item.style.getPropertyValue("--y")) || 0,
+        w: parseFloat(item.style.getPropertyValue("--w")) || 25,
+        h: parseFloat(item.style.getPropertyValue("--h")) || 25,
+        z: parseFloat(item.style.getPropertyValue("--z")) || i,
+      }));
+    }
+
+    function applyFrame(item: HTMLElement, f: Frame) {
+      item.style.setProperty("--x", String(f.x));
+      item.style.setProperty("--y", String(f.y));
+      item.style.setProperty("--w", String(f.w));
+      item.style.setProperty("--h", String(f.h));
+      item.style.setProperty("--z", String(f.z ?? 0));
+    }
+
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+    function attachHandlers(item: HTMLElement, frame: Frame) {
+      item.addEventListener("pointerdown", (e) => {
+        if (!editing) return;
+        if ((e.target as HTMLElement).classList.contains("ff-handle")) return;
+        e.preventDefault();
+        item.classList.add("is-dragging");
+        frame.z = zCounter++;
+        item.style.setProperty("--z", String(frame.z));
+
+        const rect = grid!.getBoundingClientRect();
+        if (!rect.width || !rect.height) return; // never divide by a zero-size canvas
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origX = frame.x;
+        const origY = frame.y;
+
+        function onMove(ev: PointerEvent) {
+          frame.x = clamp(origX + ((ev.clientX - startX) / rect.width) * 100, 0, 100 - frame.w);
+          frame.y = clamp(origY + ((ev.clientY - startY) / rect.height) * 100, 0, 100 - frame.h);
+          applyFrame(item, frame);
+        }
+        function onUp() {
+          item.classList.remove("is-dragging");
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        }
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      });
+
+      const handle = document.createElement("div");
+      handle.className = "ff-handle";
+      handle.hidden = true;
+      item.appendChild(handle);
+
+      handle.addEventListener("pointerdown", (e) => {
+        if (!editing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = grid!.getBoundingClientRect();
+        if (!rect.width || !rect.height) return; // never divide by a zero-size canvas
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origW = frame.w;
+        const origH = frame.h;
+
+        function onMove(ev: PointerEvent) {
+          frame.w = clamp(origW + ((ev.clientX - startX) / rect.width) * 100, 6, 100 - frame.x);
+          frame.h = clamp(origH + ((ev.clientY - startY) / rect.height) * 100, 6, 100 - frame.y);
+          applyFrame(item, frame);
+        }
+        function onUp() {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        }
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      });
+    }
+
+    readFramesFromDom();
+    items.forEach((item, i) => attachHandlers(item, frames[i]));
+
+    function setEditing(on: boolean) {
+      editing = on;
+      grid!.classList.toggle("is-editing", on);
+      editor!.hidden = !on;
+      enterBtn!.hidden = on;
+      grid!.querySelectorAll<HTMLElement>(".ff-handle").forEach((h) => (h.hidden = !on));
+    }
+
+    enterBtn.hidden = false;
+    enterBtn.addEventListener("click", () => setEditing(true));
+    document.getElementById("ff-exit")?.addEventListener("click", () => setEditing(false));
+
+    const currentRatio = getComputedStyle(grid).getPropertyValue("--ratio").trim();
+    if (currentRatio) ratioSelect.value = currentRatio;
+    ratioSelect.addEventListener("change", () => {
+      grid!.style.setProperty("--ratio", ratioSelect.value);
+      (grid!.style as any).aspectRatio = ratioSelect.value;
+    });
+
+    document.getElementById("ff-arrange")?.addEventListener("click", () => {
+      frames.forEach((f, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3) % 3;
+        f.x = 4 + col * 30;
+        f.y = 4 + row * 30;
+        f.w = 26;
+        f.h = 26;
+        f.z = i;
+        applyFrame(items[i], f);
+      });
+    });
+
+    document.getElementById("ff-save")?.addEventListener("click", async () => {
+      const settings: AdminSettings = loadSettings();
+      if (!settings.owner || !settings.repo || !settings.token) {
+        statusEl.textContent = "请先去后台「连接设置」填写 GitHub 信息。";
+        return;
+      }
+      statusEl.textContent = "保存中…";
+      try {
+        const { sha, content: list } = await getFile<any[]>(settings, "src/data/series.json");
+        const target = list.find((s: { slug: string }) => s.slug === slug);
+        if (!target) throw new Error("仓库里没找到这个系列");
+        target.layout = "freeform";
+        target.canvasRatio = ratioSelect.value;
+        target.frames = frames.map((f) => ({
+          id: f.id,
+          x: Math.round(f.x * 10) / 10,
+          y: Math.round(f.y * 10) / 10,
+          w: Math.round(f.w * 10) / 10,
+          h: Math.round(f.h * 10) / 10,
+          z: f.z,
+        }));
+        await putFile(settings, "src/data/series.json", list, sha, `chore(gallery): 更新 ${slug} 的自由排版`);
+        statusEl.textContent = "已保存，构建完成后生效。";
+      } catch (err) {
+        statusEl.textContent = `保存失败：${(err as Error).message}`;
+      }
+    });
+
+    // ?edit=1 opens straight into editing (used by the admin launcher page).
+    if (new URLSearchParams(location.search).get("edit") === "1") setEditing(true);
+  }
+
+  initFreeformEditor();
+  document.addEventListener("astro:page-load", initFreeformEditor);
+</script>

@@ -2,9 +2,12 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
 import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
+import AdminGate from "../../../components/AdminGate.astro";
+import "../../../styles/admin.css";
 ---
 
 <BaseLayout title="照片管理 · 回声画廊" description="修改每一张照片的名称与说明文字" noindex>
+  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>照片管理</h1>
@@ -14,13 +17,13 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     </p>
     <AdminNav active="photos" />
 
-    <AdminSettingsPanel />
-
-    <div class="panel" id="load-panel">
-      <input type="search" id="filter-input" placeholder="按 id / 名称 / 说明 / 标签搜索…" />
-      <button type="button" class="button" id="reload-btn">重新载入</button>
-      <span class="status" id="load-status"></span>
+    <div class="toolbar" id="load-panel">
+      <input type="search" id="filter-input" placeholder="按 id / 名称 / 说明 / 标签搜索…" style="flex:1;min-width:200px;" />
+      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
+      <span class="status" id="load-status">载入中…</span>
     </div>
+
+    <AdminSettingsPanel />
 
     <div id="photo-list" class="photo-grid"></div>
 
@@ -29,145 +32,13 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
       <ol id="log-list"></ol>
     </div>
   </section>
+  </AdminGate>
 </BaseLayout>
 
-<style>
-  .admin {
-    padding-block: var(--space-5) var(--space-6);
-    max-width: 980px;
-  }
-
-  .admin h1 {
-    font-size: clamp(2rem, 4vw, 2.6rem);
-    margin-block: var(--space-1) var(--space-2);
-  }
-
-  .note {
-    color: var(--ink-soft);
-    font-size: 0.9rem;
-    line-height: 1.7;
-  }
-
-  .panel {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  #load-panel {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  #filter-input {
-    flex: 1;
-    font: inherit;
-    padding: 0.55em 0.7em;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  .status {
-    font-size: 0.8rem;
-    color: var(--ink-faint);
-  }
-
-  .photo-grid {
-    display: grid;
-    gap: var(--space-3);
-    margin-top: var(--space-4);
-  }
-
-  @media (min-width: 760px) {
-    .photo-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  .log ol {
-    padding-left: 1.2em;
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    line-height: 1.9;
-  }
-
-  .log li[data-state="error"] {
-    color: #a4402f;
-  }
-
-  .log li[data-state="ok"] {
-    color: #4b6b4f;
-  }
-
-  :global(.photo-card) {
-    display: grid;
-    grid-template-columns: 96px 1fr;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  :global(.photo-card img) {
-    width: 96px;
-    height: 96px;
-    object-fit: cover;
-  }
-
-  :global(.photo-card__fields) {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  :global(.photo-card__id) {
-    font-size: 0.72rem;
-    color: var(--ink-faint);
-    letter-spacing: 0.04em;
-  }
-
-  :global(.photo-card input),
-  :global(.photo-card textarea) {
-    font: inherit;
-    font-size: 0.85rem;
-    padding: 0.4em 0.6em;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  :global(.photo-card textarea) {
-    resize: vertical;
-  }
-
-  :global(.photo-card__actions) {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: 0.2rem;
-  }
-
-  :global(.button--small) {
-    padding: 0.35em 0.8em;
-    font-size: 0.75rem;
-  }
-
-  :global(.button--danger) {
-    border-color: #a4402f;
-    color: #a4402f;
-  }
-
-  :global(.button--danger:hover) {
-    background: #a4402f;
-    color: var(--bg);
-  }
-</style>
 
 <script>
-  import { type AdminSettings, getFile, putFile } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, putFile, loadSettings } from "../../../lib/adminGithub";
+  import { isUnlocked } from "../../../lib/adminAuth";
 
   interface Photo {
     id: string;
@@ -328,7 +199,13 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     renderList(filtered);
   });
 
-  window.addEventListener("admin-settings-ready", (e) => loadAll((e as CustomEvent).detail));
+  // Read settings directly rather than waiting for an event the settings panel may
+  // have already dispatched before this script registered a listener.
+  function boot() {
+    loadAll(loadSettings());
+  }
+  if (isUnlocked()) boot();
+  else window.addEventListener("admin-unlocked", boot);
   window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
   document.getElementById("reload-btn")?.addEventListener("click", () => {
     if (currentSettings) loadAll(currentSettings);

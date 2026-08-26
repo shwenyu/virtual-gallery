@@ -6,9 +6,10 @@ interface Props {
   layout?: SeriesLayout;
   frames?: Frame[];
   canvasRatio?: string;
+  frameStyle?: "square" | "rounded";
 }
 
-const { photos, layout = "grid", frames, canvasRatio = "3 / 2" } = Astro.props;
+const { photos, layout = "grid", frames, canvasRatio = "3 / 2", frameStyle = "square" } = Astro.props;
 
 const photoById = new Map(photos.map((p) => [p.id, p]));
 
@@ -34,13 +35,14 @@ const freeformItems =
 
 {
   layout === "freeform" ? (
-    <div class="photogrid photogrid--freeform" data-lightbox-group style={`--ratio:${canvasRatio}`}>
+    <div class="photogrid photogrid--freeform" data-lightbox-group data-frame={frameStyle} style={`--ratio:${canvasRatio}`}>
       {freeformItems.map((frame, i) => {
         const photo = photoById.get(frame.id);
         if (!photo) return null;
         return (
           <figure
             class="photogrid__item"
+            data-photo-id={photo.id}
             style={`--x:${frame.x};--y:${frame.y};--w:${frame.w};--h:${frame.h};--z:${frame.z ?? i}`}
           >
             <button
@@ -59,7 +61,7 @@ const freeformItems =
       })}
     </div>
   ) : (
-    <div class={`photogrid photogrid--${layout}`} data-lightbox-group>
+    <div class={`photogrid photogrid--${layout}`} data-lightbox-group data-frame={frameStyle}>
       {photos.map((photo, i) => (
         <figure class="photogrid__item" style={`--i:${i % 6}`}>
           <button
@@ -101,6 +103,10 @@ const freeformItems =
     height: 100%;
     object-fit: cover;
     transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .photogrid[data-frame="rounded"] .photogrid__frame {
+    border-radius: 14px;
   }
 
   .photogrid__frame:hover img {

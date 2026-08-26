@@ -1,0 +1,489 @@
+/*
+ * Admin UI styles.
+ *
+ * These live in a plain global stylesheet on purpose: much of the admin UI is
+ * built at runtime with innerHTML, and Astro's scoped styles only apply to
+ * markup rendered at build time (they key off a data-astro-cid-* attribute the
+ * generated nodes never receive). Keeping them global is what makes the
+ * dynamically built series/photo cards actually look styled.
+ */
+
+:root {
+  --admin-radius: 12px;
+  --admin-radius-sm: 9px;
+  --admin-field: #fdfcfa;
+}
+
+.admin {
+  padding-block: var(--space-5) var(--space-6);
+}
+
+.admin h1 {
+  font-size: clamp(1.9rem, 3.6vw, 2.4rem);
+  letter-spacing: -0.015em;
+  margin-block: var(--space-1) var(--space-2);
+}
+
+.admin .note {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.75;
+  max-width: 68ch;
+}
+
+.admin .note.small {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+.admin code {
+  font-size: 0.85em;
+  background: var(--bg-raised);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+}
+
+/* ---- panels ---- */
+
+.panel {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius);
+  background: var(--bg-raised);
+}
+
+.panel > summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.panel h2 {
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-2);
+}
+
+/* ---- forms ---- */
+
+.grid2 {
+  display: grid;
+  gap: var(--space-2) var(--space-3);
+  margin-block: var(--space-2);
+}
+
+@media (min-width: 680px) {
+  .grid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin label,
+.panel label,
+.series-card label,
+.photo-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  margin-bottom: var(--space-2);
+}
+
+.admin input,
+.admin select,
+.admin textarea {
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--admin-field);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius-sm);
+  padding: 0.6em 0.75em;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin input:focus,
+.admin select:focus,
+.admin textarea:focus {
+  outline: none;
+  border-color: var(--ink-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.admin textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.admin input[type="color"] {
+  padding: 0.2em;
+  width: 46px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.admin input[type="file"] {
+  background: transparent;
+  border-style: dashed;
+  padding: 0.8em;
+  cursor: pointer;
+}
+
+/* ---- buttons (rounded, Apple-ish) ---- */
+
+.admin .button,
+.admin button.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding: 0.7em 1.15em;
+  border-radius: 980px;
+  border: 1px solid transparent;
+  background: var(--ink);
+  color: var(--bg);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.06s ease;
+}
+
+.admin .button:hover {
+  background: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  color: var(--bg);
+}
+
+.admin .button:active {
+  transform: scale(0.98);
+}
+
+.admin .button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin .button--secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.admin .button--secondary:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.admin .button--danger {
+  background: transparent;
+  color: #a4402f;
+  border-color: color-mix(in srgb, #a4402f 35%, transparent);
+}
+
+.admin .button--danger:hover {
+  background: #a4402f;
+  color: var(--bg);
+}
+
+.admin .button--small {
+  font-size: 0.75rem;
+  padding: 0.55em 0.9em;
+}
+
+/* ---- status text ---- */
+
+.status,
+.admin .status {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+/* ---- series cards ---- */
+
+.series-card {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius);
+  background: var(--bg-raised);
+}
+
+.series-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  flex-wrap: wrap;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.series-card__header h2 {
+  font-size: 1.35rem;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.series-card__slug {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  margin-left: auto;
+}
+
+.publish-pill {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 0.3em 0.7em;
+  border-radius: 980px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  background: var(--bg);
+}
+
+.publish-pill[data-published="false"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-block: var(--space-3) var(--space-1);
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.series-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* ---- photo order list ---- */
+
+.photo-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.photo-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.82rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius-sm);
+  padding: 0.4rem 0.55rem;
+}
+
+.photo-list img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.photo-list .photo-id {
+  flex: 1;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-list button {
+  border: 1px solid var(--line);
+  border-radius: 980px;
+  background: var(--bg-raised);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+  padding: 0.35rem 0.7rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.photo-list button:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.photo-list button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.add-photo-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.add-photo-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- photo management cards ---- */
+
+.photo-grid {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (min-width: 820px) {
+  .photo-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.photo-card {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius);
+  background: var(--bg-raised);
+}
+
+.photo-card img {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: var(--admin-radius-sm);
+}
+
+.photo-card__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.photo-card__id {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
+/* ---- staged upload previews ---- */
+
+.staged-list {
+  list-style: none;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.staged-list li {
+  position: relative;
+  width: 86px;
+}
+
+.staged-list img {
+  width: 86px;
+  height: 86px;
+  object-fit: cover;
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius-sm);
+}
+
+.staged-list .staged-name {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  margin-top: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staged-list .staged-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-raised);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- log ---- */
+
+.log ol {
+  padding-left: 1.2em;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.9;
+}
+
+.log li[data-state="error"] {
+  color: #a4402f;
+}
+
+.log li[data-state="ok"] {
+  color: #4b6b4f;
+}
+
+/* ---- toolbar ---- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}

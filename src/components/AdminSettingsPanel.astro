@@ -113,6 +113,4 @@
     window.dispatchEvent(new CustomEvent("admin-settings-saved", { detail: settings }));
   });
 
-  // Let other admin scripts on the page know settings are ready once DOM is parsed.
-  window.dispatchEvent(new CustomEvent("admin-settings-ready", { detail: loadSettings() }));
 </script>

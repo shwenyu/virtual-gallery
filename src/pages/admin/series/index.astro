@@ -2,9 +2,12 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
 import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
+import AdminGate from "../../../components/AdminGate.astro";
+import "../../../styles/admin.css";
 ---
 
 <BaseLayout title="系列管理 · 回声画廊" description="管理每个系列的名称、简介与照片顺序" noindex>
+  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>系列管理</h1>
@@ -14,12 +17,12 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     </p>
     <AdminNav active="series" />
 
-    <AdminSettingsPanel />
-
-    <div class="panel" id="load-panel">
-      <button type="button" class="button" id="reload-btn">载入系列列表</button>
-      <span class="status" id="load-status"></span>
+    <div class="toolbar" id="load-panel">
+      <span class="status" id="load-status">载入中…</span>
+      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
     </div>
+
+    <AdminSettingsPanel />
 
     <div id="series-list"></div>
 
@@ -63,213 +66,15 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
       <ol id="log-list"></ol>
     </div>
   </section>
+  </AdminGate>
 </BaseLayout>
 
-<style>
-  .admin {
-    padding-block: var(--space-5) var(--space-6);
-    max-width: 820px;
-  }
-
-  .admin h1 {
-    font-size: clamp(2rem, 4vw, 2.6rem);
-    margin-block: var(--space-1) var(--space-2);
-  }
-
-  .note {
-    color: var(--ink-soft);
-    font-size: 0.9rem;
-    line-height: 1.7;
-  }
-
-  .panel {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  .panel summary {
-    cursor: pointer;
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-  }
-
-  .status {
-    margin-left: var(--space-2);
-    font-size: 0.8rem;
-    color: var(--ink-faint);
-  }
-
-  .grid2 {
-    display: grid;
-    gap: var(--space-2);
-    margin-block: var(--space-2);
-  }
-
-  @media (min-width: 640px) {
-    .grid2 {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35em;
-    font-size: 0.82rem;
-    color: var(--ink-soft);
-    margin-bottom: var(--space-2);
-  }
-
-  input, select, textarea {
-    font: inherit;
-    padding: 0.55em 0.7em;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  textarea {
-    resize: vertical;
-  }
-
-  .log ol {
-    padding-left: 1.2em;
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    line-height: 1.9;
-  }
-
-  .log li[data-state="error"] {
-    color: #a4402f;
-  }
-
-  .log li[data-state="ok"] {
-    color: #4b6b4f;
-  }
-
-  :global(.series-card) {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    border: 1px solid var(--line);
-    background: var(--bg-raised);
-  }
-
-  :global(.series-card__header) {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: var(--space-2);
-  }
-
-  :global(.series-card__slug) {
-    font-size: 0.75rem;
-    color: var(--ink-faint);
-    letter-spacing: 0.06em;
-    margin-left: auto;
-  }
-
-  :global(.publish-pill) {
-    font-size: 0.65rem;
-    letter-spacing: 0.06em;
-    padding: 0.15em 0.5em;
-    border: 1px solid var(--line);
-    color: var(--ink-soft);
-  }
-
-  :global(.publish-pill[data-published="false"]) {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-
-  :global(.series-card__actions) {
-    display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
-    align-items: center;
-  }
-
-  :global(.button--danger) {
-    border-color: #a4402f;
-    color: #a4402f;
-  }
-
-  :global(.button--danger:hover) {
-    background: #a4402f;
-    color: var(--bg);
-  }
-
-  :global(.button--small) {
-    padding: 0.35em 0.8em;
-    font-size: 0.75rem;
-  }
-
-  :global(.color-row) {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  :global(.color-row input[type="color"]) {
-    padding: 0.15em;
-    width: 44px;
-    height: 34px;
-  }
-
-  :global(.photo-list) {
-    list-style: none;
-    margin: var(--space-2) 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  :global(.photo-list li) {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.82rem;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    padding: 0.3rem 0.5rem;
-  }
-
-  :global(.photo-list img) {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-
-  :global(.photo-list .photo-id) {
-    flex: 1;
-    color: var(--ink-soft);
-  }
-
-  :global(.photo-list button) {
-    border: 1px solid var(--line);
-    background: var(--bg);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0.2rem 0.5rem;
-  }
-
-  :global(.add-photo-row) {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-  }
-
-  :global(.add-photo-row select) {
-    flex: 1;
-  }
-</style>
 
 <script>
-  import { type AdminSettings, getFile, putFile } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, putFile, loadSettings } from "../../../lib/adminGithub";
+  import { isUnlocked } from "../../../lib/adminAuth";
   import { extractDominantColor } from "../../../lib/extractColor";
+  import { withBase } from "../../../lib/url";
 
   interface Photo {
     id: string;
@@ -292,6 +97,7 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     accentColor?: string;
     backgroundMode?: string;
     customBackground?: string;
+    frameStyle?: string;
   }
 
   let currentSettings: AdminSettings | null = null;
@@ -349,12 +155,12 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
       </div>
       <label>简介<textarea class="f-description" rows="2">${escapeHtml(entry.description ?? "")}</textarea></label>
 
-      <p class="note" style="font-size:0.8rem;">主题色彩（用于该系列页面的背景色调）</p>
+      <p class="section-label">主题色彩</p>
       <div class="grid2">
         <label>核心色彩
           <span class="color-row">
             <input type="color" class="f-accent" value="${entry.accentColor ?? "#a4744f"}" />
-            <button type="button" class="button button--small extract-color-btn">从封面提取</button>
+            <button type="button" class="button button--secondary button--small extract-color-btn">从封面提取</button>
           </span>
         </label>
         <label>页面背景
@@ -367,16 +173,23 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
         <label class="f-custom-bg-wrap" hidden>自定义背景色
           <input type="color" class="f-custom-bg" value="${entry.customBackground ?? "#f2f0eb"}" />
         </label>
+        <label>照片边角
+          <select class="f-frame-style">
+            <option value="square">直角</option>
+            <option value="rounded">圆角</option>
+          </select>
+        </label>
       </div>
-      <p class="note" style="font-size:0.8rem;">照片顺序（决定展示顺序；freeform 排版下位置由「自由排版」页单独控制）</p>
+      <p class="section-label">照片顺序</p>
       <ul class="photo-list"></ul>
       <div class="add-photo-row">
         <select class="add-photo-select"></select>
-        <button type="button" class="button add-photo-btn">加入</button>
+        <button type="button" class="button button--secondary add-photo-btn">加入</button>
       </div>
       <div class="series-card__actions">
         <button type="button" class="button save-btn">保存这个系列</button>
-        <button type="button" class="button publish-toggle-btn">${published ? "取消发布" : "发布"}</button>
+        <button type="button" class="button button--secondary publish-toggle-btn">${published ? "取消发布" : "发布"}</button>
+        <a class="button button--secondary" href="${withBase(`/gallery/${entry.slug}/`)}">查看页面</a>
         <button type="button" class="button button--danger delete-btn">删除系列</button>
         <span class="status card-status"></span>
       </div>
@@ -391,6 +204,9 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     layoutSelect.addEventListener("change", () => {
       flowDirWrap.hidden = layoutSelect.value !== "flow";
     });
+
+    const frameStyleSelect = card.querySelector(".f-frame-style") as HTMLSelectElement;
+    frameStyleSelect.value = entry.frameStyle ?? "square";
 
     const bgModeSelect = card.querySelector(".f-bg-mode") as HTMLSelectElement;
     const customBgWrap = card.querySelector(".f-custom-bg-wrap") as HTMLElement;
@@ -500,6 +316,7 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
         target.cover = coverSelect.value || photoIds[0] || target.cover;
         target.photoIds = photoIds;
         target.accentColor = (card.querySelector(".f-accent") as HTMLInputElement).value;
+        target.frameStyle = frameStyleSelect.value as "square" | "rounded";
         target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
         target.customBackground =
           bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
@@ -595,7 +412,13 @@ import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
     }
   }
 
-  window.addEventListener("admin-settings-ready", (e) => loadAll((e as CustomEvent).detail));
+  // Read settings directly rather than waiting for an event the settings panel may
+  // have already dispatched before this script registered a listener.
+  function boot() {
+    loadAll(loadSettings());
+  }
+  if (isUnlocked()) boot();
+  else window.addEventListener("admin-unlocked", boot);
   window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
   document.getElementById("reload-btn")?.addEventListener("click", () => {
     if (currentSettings) loadAll(currentSettings);
