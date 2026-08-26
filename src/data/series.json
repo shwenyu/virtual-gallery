@@ -49,23 +49,6 @@
     ]
   },
   {
-    "slug": "passage",
-    "title": "Passage",
-    "subtitle": "行经",
-    "description": "沉浸式逐张浏览，模拟走过一条展廊的节奏。",
-    "layout": "flow",
-    "flowDirection": "horizontal",
-    "cover": "p005",
-    "photoIds": [
-      "p005",
-      "p011",
-      "p006",
-      "p010"
-    ],
-    "accentColor": "#3d6b8a",
-    "backgroundMode": "accent"
-  },
-  {
     "slug": "Grassland",
     "title": "Grassland",
     "subtitle": "在草原",
