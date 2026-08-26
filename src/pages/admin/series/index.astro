@@ -376,13 +376,15 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "删除中…";
       try {
-        await updateJsonFile<SeriesEntry[]>(
+        const updated = await updateJsonFile<SeriesEntry[]>(
           currentSettings,
           "src/data/series.json",
           (list) => list.filter((s) => s.slug !== entry.slug),
           `chore(gallery): 删除系列 ${entry.slug}`
         );
-        card.remove();
+        // Repaint from what was actually written, so the list stays correct for
+        // the next delete without anyone having to hit refresh.
+        renderList(updated);
         log(`已删除系列：${entry.slug}`, "ok");
       } catch (err) {
         statusEl.textContent = `删除失败：${(err as Error).message}`;
@@ -401,6 +403,16 @@ import "../../../styles/admin.css";
     return escapeHtml(str).replace(/"/g, "&quot;");
   }
 
+  /** Repaint the whole list from a known-current list — no network round trip. */
+  function renderList(seriesList: SeriesEntry[]) {
+    const container = document.getElementById("series-list")!;
+    container.innerHTML = "";
+    for (const entry of seriesList) {
+      container.appendChild(renderSeriesCard(entry));
+    }
+    document.getElementById("load-status")!.textContent = `${seriesList.length} 个系列。`;
+  }
+
   async function loadAll(settings: AdminSettings) {
     if (!settings.owner || !settings.repo || !settings.token) return;
     currentSettings = settings;
@@ -412,12 +424,7 @@ import "../../../styles/admin.css";
         getFile<SeriesEntry[]>(settings, "src/data/series.json"),
       ]);
       allPhotos = photos;
-      const container = document.getElementById("series-list")!;
-      container.innerHTML = "";
-      for (const entry of seriesList) {
-        container.appendChild(renderSeriesCard(entry));
-      }
-      statusEl.textContent = `已载入 ${seriesList.length} 个系列。`;
+      renderList(seriesList);
     } catch (err) {
       statusEl.textContent = `载入失败：${(err as Error).message}`;
     }
@@ -464,7 +471,7 @@ import "../../../styles/admin.css";
       updatedAt: new Date().toISOString(),
     };
     try {
-      await updateJsonFile<SeriesEntry[]>(
+      const updated = await updateJsonFile<SeriesEntry[]>(
         currentSettings,
         "src/data/series.json",
         (list) => {
@@ -474,7 +481,7 @@ import "../../../styles/admin.css";
         `feat(gallery): 新建系列 ${slug}`
       );
       log(`已创建系列：${slug}`, "ok");
-      document.getElementById("series-list")!.appendChild(renderSeriesCard(entry));
+      renderList(updated);
       (document.getElementById("new-series-form") as HTMLFormElement).reset();
     } catch (err) {
       log(`创建系列失败：${(err as Error).message}`, "error");

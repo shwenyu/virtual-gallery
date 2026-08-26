@@ -42,15 +42,13 @@ function b64DecodeUtf8(b64: string) {
 }
 
 export async function getFile<T = unknown>(settings: AdminSettings, path: string): Promise<{ sha: string; content: T }> {
-  // The cache buster and no-cache header matter: without them a read issued right
-  // after a write is often served a copy that predates it.
+  // The `_` query param busts caches without adding a request header: GitHub's
+  // CORS policy does not allow `Cache-Control`, and sending it fails the preflight
+  // with a bare "Failed to fetch".
   const url =
     `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}` +
     `?ref=${settings.branch}&_=${Date.now()}`;
-  const res = await fetch(url, {
-    headers: { ...ghHeaders(settings.token), "Cache-Control": "no-cache" },
-    cache: "no-store",
-  });
+  const res = await fetch(url, { headers: ghHeaders(settings.token), cache: "no-store" });
   if (!res.ok) throw new Error(`读取 ${path} 失败：${res.status} ${await res.text()}`);
   const data = await res.json();
   return { sha: data.sha as string, content: JSON.parse(b64DecodeUtf8(data.content)) as T };

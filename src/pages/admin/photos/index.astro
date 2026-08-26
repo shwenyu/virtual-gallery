@@ -133,7 +133,7 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "删除中…";
       try {
-        await updateJsonFile<Photo[]>(
+        const updated = await updateJsonFile<Photo[]>(
           currentSettings,
           "src/data/photos.json",
           (list) => list.filter((p) => p.id !== photo.id),
@@ -153,7 +153,11 @@ import "../../../styles/admin.css";
           `chore(gallery): 清理已删除照片 ${photo.id} 的引用`
         );
 
+        // Keep the in-memory list in step with the repo so the next delete and the
+        // search filter both work without a manual refresh.
+        allPhotos = updated;
         card.remove();
+        document.getElementById("load-status")!.textContent = `${allPhotos.length} 张照片。`;
         log(`已删除照片：${photo.id}`, "ok");
       } catch (err) {
         statusEl.textContent = `删除失败：${(err as Error).message}`;
@@ -181,7 +185,7 @@ import "../../../styles/admin.css";
       const { content: photos } = await getFile<Photo[]>(settings, "src/data/photos.json");
       allPhotos = photos;
       renderList(allPhotos);
-      statusEl.textContent = `已载入 ${photos.length} 张照片。`;
+      statusEl.textContent = `${photos.length} 张照片。`;
     } catch (err) {
       statusEl.textContent = `载入失败：${(err as Error).message}`;
     }
