@@ -1,0 +1,47 @@
+---
+import { withBase } from "../lib/url";
+
+const { active } = Astro.props as { active: "upload" | "photos" | "series" | "layout" };
+
+const items = [
+  { key: "upload", label: "上传照片", href: "/admin/" },
+  { key: "photos", label: "照片管理", href: "/admin/photos/" },
+  { key: "series", label: "系列管理", href: "/admin/series/" },
+  { key: "layout", label: "自由排版", href: "/admin/layout/" },
+] as const;
+---
+
+<nav class="admin-nav">
+  {
+    items.map((item) => (
+      <a href={withBase(item.href)} aria-current={item.key === active ? "page" : undefined}>
+        {item.label}
+      </a>
+    ))
+  }
+</nav>
+
+<style>
+  .admin-nav {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+    font-size: 0.85rem;
+  }
+
+  .admin-nav a {
+    text-decoration: none;
+    color: var(--ink-faint);
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid transparent;
+  }
+
+  .admin-nav a:hover {
+    color: var(--ink-soft);
+  }
+
+  .admin-nav a[aria-current="page"] {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+</style>

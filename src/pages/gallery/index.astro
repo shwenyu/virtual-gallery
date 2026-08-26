@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { getAllSeries, getSeriesCover } from "../../lib/content";
+import { getAllSeries, getSeriesCover, isPublished } from "../../lib/content";
 import { withBase } from "../../lib/url";
 
 const series = getAllSeries();
@@ -26,6 +26,7 @@ const series = getAllSeries();
             </div>
             <div class="row__meta">
               <h2>{s.title} <span>{s.subtitle}</span></h2>
+              {!isPublished(s) && <span class="badge">策展中</span>}
               <p>{s.description}</p>
               <span class="row__count">{s.photoIds.length} 张 · {s.layout}</span>
             </div>

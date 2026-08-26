@@ -1,0 +1,636 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import AdminNav from "../../../components/AdminNav.astro";
+import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
+---
+
+<BaseLayout title="系列管理 · 回声画廊" description="管理每个系列的名称、简介与照片顺序" noindex>
+  <section class="wrap admin">
+    <p class="eyebrow">Admin</p>
+    <h1>系列管理</h1>
+    <p class="note">
+      在这里编辑每个系列的标题、简介、排版风格，调整照片顺序，或新建 / 删除系列。
+      保存时只会更新对应的那一个系列条目。
+    </p>
+    <AdminNav active="series" />
+
+    <AdminSettingsPanel />
+
+    <div class="panel" id="load-panel">
+      <button type="button" class="button" id="reload-btn">载入系列列表</button>
+      <span class="status" id="load-status"></span>
+    </div>
+
+    <div id="series-list"></div>
+
+    <details class="panel" id="new-series-panel">
+      <summary>新建系列</summary>
+      <form id="new-series-form">
+        <div class="grid2">
+          <label>
+            Slug（网址用，英文/数字/短横线）
+            <input type="text" id="ns-slug" placeholder="nightwalk" required />
+          </label>
+          <label>
+            标题
+            <input type="text" id="ns-title" placeholder="Nightwalk" required />
+          </label>
+          <label>
+            副标题
+            <input type="text" id="ns-subtitle" placeholder="夜行" />
+          </label>
+          <label>
+            排版
+            <select id="ns-layout">
+              <option value="grid">grid</option>
+              <option value="masonry">masonry</option>
+              <option value="editorial">editorial</option>
+              <option value="freeform">freeform</option>
+              <option value="flow">flow</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          简介
+          <textarea id="ns-description" rows="2" placeholder="一句话描述这个系列"></textarea>
+        </label>
+        <button type="submit" class="button">创建系列</button>
+      </form>
+    </details>
+
+    <div class="panel log" id="log" hidden>
+      <h2>执行日志</h2>
+      <ol id="log-list"></ol>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .admin {
+    padding-block: var(--space-5) var(--space-6);
+    max-width: 820px;
+  }
+
+  .admin h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .note {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .panel {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  .panel summary {
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+  }
+
+  .status {
+    margin-left: var(--space-2);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+
+  .grid2 {
+    display: grid;
+    gap: var(--space-2);
+    margin-block: var(--space-2);
+  }
+
+  @media (min-width: 640px) {
+    .grid2 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    margin-bottom: var(--space-2);
+  }
+
+  input, select, textarea {
+    font: inherit;
+    padding: 0.55em 0.7em;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  .log ol {
+    padding-left: 1.2em;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+
+  .log li[data-state="error"] {
+    color: #a4402f;
+  }
+
+  .log li[data-state="ok"] {
+    color: #4b6b4f;
+  }
+
+  :global(.series-card) {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  :global(.series-card__header) {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  :global(.series-card__slug) {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    margin-left: auto;
+  }
+
+  :global(.publish-pill) {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    padding: 0.15em 0.5em;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+
+  :global(.publish-pill[data-published="false"]) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  :global(.series-card__actions) {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    align-items: center;
+  }
+
+  :global(.button--danger) {
+    border-color: #a4402f;
+    color: #a4402f;
+  }
+
+  :global(.button--danger:hover) {
+    background: #a4402f;
+    color: var(--bg);
+  }
+
+  :global(.button--small) {
+    padding: 0.35em 0.8em;
+    font-size: 0.75rem;
+  }
+
+  :global(.color-row) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  :global(.color-row input[type="color"]) {
+    padding: 0.15em;
+    width: 44px;
+    height: 34px;
+  }
+
+  :global(.photo-list) {
+    list-style: none;
+    margin: var(--space-2) 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  :global(.photo-list li) {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 0.3rem 0.5rem;
+  }
+
+  :global(.photo-list img) {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  :global(.photo-list .photo-id) {
+    flex: 1;
+    color: var(--ink-soft);
+  }
+
+  :global(.photo-list button) {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  :global(.add-photo-row) {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  :global(.add-photo-row select) {
+    flex: 1;
+  }
+</style>
+
+<script>
+  import { type AdminSettings, getFile, putFile } from "../../../lib/adminGithub";
+  import { extractDominantColor } from "../../../lib/extractColor";
+
+  interface Photo {
+    id: string;
+    src: string;
+    alt: string;
+  }
+
+  interface SeriesEntry {
+    slug: string;
+    title: string;
+    subtitle?: string;
+    description?: string;
+    layout: string;
+    cover: string;
+    photoIds: string[];
+    frames?: unknown[];
+    canvasRatio?: string;
+    published?: boolean;
+    flowDirection?: string;
+    accentColor?: string;
+    backgroundMode?: string;
+    customBackground?: string;
+  }
+
+  let currentSettings: AdminSettings | null = null;
+  let allPhotos: Photo[] = [];
+
+  function log(message: string, state: "info" | "ok" | "error" = "info") {
+    const panel = document.getElementById("log")!;
+    const list = document.getElementById("log-list")!;
+    panel.hidden = false;
+    const li = document.createElement("li");
+    li.textContent = message;
+    li.dataset.state = state;
+    list.appendChild(li);
+    li.scrollIntoView({ block: "nearest" });
+  }
+
+  function photoById(id: string) {
+    return allPhotos.find((p) => p.id === id);
+  }
+
+  function renderSeriesCard(entry: SeriesEntry): HTMLElement {
+    const card = document.createElement("div");
+    card.className = "series-card";
+    card.dataset.slug = entry.slug;
+
+    const published = entry.published !== false;
+
+    card.innerHTML = `
+      <div class="series-card__header">
+        <h2>${entry.title || entry.slug}</h2>
+        <span class="publish-pill" data-published="${published}">${published ? "已发布" : "策展中（未发布）"}</span>
+        <span class="series-card__slug">/gallery/${entry.slug}/</span>
+      </div>
+      <div class="grid2">
+        <label>标题<input type="text" class="f-title" value="${escapeAttr(entry.title ?? "")}" /></label>
+        <label>副标题<input type="text" class="f-subtitle" value="${escapeAttr(entry.subtitle ?? "")}" /></label>
+        <label>排版
+          <select class="f-layout">
+            <option value="grid">grid（均匀网格）</option>
+            <option value="masonry">masonry（瀑布流）</option>
+            <option value="editorial">editorial（杂志式节奏）</option>
+            <option value="freeform">freeform（自由拖拽）</option>
+            <option value="flow">flow（沉浸式逐张浏览）</option>
+          </select>
+        </label>
+        <label class="f-flow-direction-wrap" hidden>flow 方向
+          <select class="f-flow-direction">
+            <option value="horizontal">横向（左右翻页）</option>
+            <option value="vertical">纵向（上下翻页）</option>
+          </select>
+        </label>
+        <label>封面
+          <select class="f-cover"></select>
+        </label>
+      </div>
+      <label>简介<textarea class="f-description" rows="2">${escapeHtml(entry.description ?? "")}</textarea></label>
+
+      <p class="note" style="font-size:0.8rem;">主题色彩（用于该系列页面的背景色调）</p>
+      <div class="grid2">
+        <label>核心色彩
+          <span class="color-row">
+            <input type="color" class="f-accent" value="${entry.accentColor ?? "#a4744f"}" />
+            <button type="button" class="button button--small extract-color-btn">从封面提取</button>
+          </span>
+        </label>
+        <label>页面背景
+          <select class="f-bg-mode">
+            <option value="site">跟随网站默认</option>
+            <option value="accent">用核心色彩淡淡渲染</option>
+            <option value="custom">自定义颜色</option>
+          </select>
+        </label>
+        <label class="f-custom-bg-wrap" hidden>自定义背景色
+          <input type="color" class="f-custom-bg" value="${entry.customBackground ?? "#f2f0eb"}" />
+        </label>
+      </div>
+      <p class="note" style="font-size:0.8rem;">照片顺序（决定展示顺序；freeform 排版下位置由「自由排版」页单独控制）</p>
+      <ul class="photo-list"></ul>
+      <div class="add-photo-row">
+        <select class="add-photo-select"></select>
+        <button type="button" class="button add-photo-btn">加入</button>
+      </div>
+      <div class="series-card__actions">
+        <button type="button" class="button save-btn">保存这个系列</button>
+        <button type="button" class="button publish-toggle-btn">${published ? "取消发布" : "发布"}</button>
+        <button type="button" class="button button--danger delete-btn">删除系列</button>
+        <span class="status card-status"></span>
+      </div>
+    `;
+
+    const layoutSelect = card.querySelector(".f-layout") as HTMLSelectElement;
+    const flowDirWrap = card.querySelector(".f-flow-direction-wrap") as HTMLElement;
+    const flowDirSelect = card.querySelector(".f-flow-direction") as HTMLSelectElement;
+    layoutSelect.value = entry.layout;
+    flowDirSelect.value = entry.flowDirection ?? "horizontal";
+    flowDirWrap.hidden = entry.layout !== "flow";
+    layoutSelect.addEventListener("change", () => {
+      flowDirWrap.hidden = layoutSelect.value !== "flow";
+    });
+
+    const bgModeSelect = card.querySelector(".f-bg-mode") as HTMLSelectElement;
+    const customBgWrap = card.querySelector(".f-custom-bg-wrap") as HTMLElement;
+    bgModeSelect.value = entry.backgroundMode ?? "site";
+    customBgWrap.hidden = bgModeSelect.value !== "custom";
+    bgModeSelect.addEventListener("change", () => {
+      customBgWrap.hidden = bgModeSelect.value !== "custom";
+    });
+
+    card.querySelector(".extract-color-btn")?.addEventListener("click", async () => {
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      const cover = photoById(coverSelect.value || entry.cover);
+      if (!cover) {
+        statusEl.textContent = "请先选一个封面照片再提取。";
+        return;
+      }
+      statusEl.textContent = "提取中…";
+      try {
+        const color = await extractDominantColor(cover.src);
+        (card.querySelector(".f-accent") as HTMLInputElement).value = color;
+        statusEl.textContent = `已提取：${color}`;
+      } catch (err) {
+        statusEl.textContent = `提取失败：${(err as Error).message}`;
+      }
+    });
+
+    const photoListEl = card.querySelector(".photo-list") as HTMLUListElement;
+    const coverSelect = card.querySelector(".f-cover") as HTMLSelectElement;
+    const addSelect = card.querySelector(".add-photo-select") as HTMLSelectElement;
+
+    let photoIds = [...entry.photoIds];
+
+    function refreshCoverOptions() {
+      coverSelect.innerHTML = photoIds
+        .map((id) => `<option value="${escapeAttr(id)}">${escapeAttr(id)}</option>`)
+        .join("");
+      coverSelect.value = entry.cover;
+    }
+
+    function refreshAddOptions() {
+      const remaining = allPhotos.filter((p) => !photoIds.includes(p.id));
+      addSelect.innerHTML = remaining
+        .map((p) => `<option value="${escapeAttr(p.id)}">${escapeAttr(p.id)} — ${escapeAttr(p.alt)}</option>`)
+        .join("");
+    }
+
+    function renderPhotoList() {
+      photoListEl.innerHTML = "";
+      photoIds.forEach((id, index) => {
+        const photo = photoById(id);
+        const li = document.createElement("li");
+        li.innerHTML = `
+          ${photo ? `<img src="${escapeAttr(photo.src)}" alt="" />` : ""}
+          <span class="photo-id">${escapeHtml(id)}${photo ? "" : "（未找到该照片）"}</span>
+          <button type="button" data-action="up" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" data-action="down" ${index === photoIds.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" data-action="remove">移除</button>
+        `;
+        li.querySelector('[data-action="up"]')?.addEventListener("click", () => {
+          if (index > 0) {
+            [photoIds[index - 1], photoIds[index]] = [photoIds[index], photoIds[index - 1]];
+            renderPhotoList();
+          }
+        });
+        li.querySelector('[data-action="down"]')?.addEventListener("click", () => {
+          if (index < photoIds.length - 1) {
+            [photoIds[index + 1], photoIds[index]] = [photoIds[index], photoIds[index + 1]];
+            renderPhotoList();
+          }
+        });
+        li.querySelector('[data-action="remove"]')?.addEventListener("click", () => {
+          photoIds.splice(index, 1);
+          renderPhotoList();
+          refreshCoverOptions();
+          refreshAddOptions();
+        });
+        photoListEl.appendChild(li);
+      });
+      refreshCoverOptions();
+    }
+
+    card.querySelector(".add-photo-btn")?.addEventListener("click", () => {
+      const id = addSelect.value;
+      if (id && !photoIds.includes(id)) {
+        photoIds.push(id);
+        renderPhotoList();
+        refreshAddOptions();
+      }
+    });
+
+    renderPhotoList();
+    refreshAddOptions();
+
+    card.querySelector(".save-btn")?.addEventListener("click", async () => {
+      if (!currentSettings) return;
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      statusEl.textContent = "保存中…";
+      try {
+        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
+        const target = list.find((s) => s.slug === entry.slug);
+        if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
+        target.title = (card.querySelector(".f-title") as HTMLInputElement).value.trim();
+        target.subtitle = (card.querySelector(".f-subtitle") as HTMLInputElement).value.trim();
+        target.description = (card.querySelector(".f-description") as HTMLTextAreaElement).value.trim();
+        target.layout = layoutSelect.value;
+        target.flowDirection = layoutSelect.value === "flow" ? (flowDirSelect.value as "horizontal" | "vertical") : undefined;
+        target.cover = coverSelect.value || photoIds[0] || target.cover;
+        target.photoIds = photoIds;
+        target.accentColor = (card.querySelector(".f-accent") as HTMLInputElement).value;
+        target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
+        target.customBackground =
+          bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
+        await putFile(currentSettings, "src/data/series.json", list, sha, `chore(gallery): 更新系列 ${entry.slug}`);
+        statusEl.textContent = "已保存。";
+        log(`已保存系列：${entry.slug}`, "ok");
+      } catch (err) {
+        statusEl.textContent = `保存失败：${(err as Error).message}`;
+        log(`保存系列 ${entry.slug} 失败：${(err as Error).message}`, "error");
+      }
+    });
+
+    card.querySelector(".publish-toggle-btn")?.addEventListener("click", async (ev) => {
+      if (!currentSettings) return;
+      const btn = ev.currentTarget as HTMLButtonElement;
+      const pill = card.querySelector(".publish-pill") as HTMLElement;
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      const nextPublished = pill.dataset.published !== "true";
+      btn.disabled = true;
+      statusEl.textContent = nextPublished ? "发布中…" : "取消发布中…";
+      try {
+        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
+        const target = list.find((s) => s.slug === entry.slug);
+        if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
+        target.published = nextPublished;
+        await putFile(
+          currentSettings,
+          "src/data/series.json",
+          list,
+          sha,
+          `chore(gallery): ${nextPublished ? "发布" : "取消发布"} ${entry.slug}`
+        );
+        pill.dataset.published = String(nextPublished);
+        pill.textContent = nextPublished ? "已发布" : "策展中（未发布）";
+        btn.textContent = nextPublished ? "取消发布" : "发布";
+        statusEl.textContent = "已更新。";
+        log(`${entry.slug} 现在是：${nextPublished ? "已发布" : "策展中"}`, "ok");
+      } catch (err) {
+        statusEl.textContent = `操作失败：${(err as Error).message}`;
+        log(`切换发布状态失败：${(err as Error).message}`, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    card.querySelector(".delete-btn")?.addEventListener("click", async () => {
+      if (!currentSettings) return;
+      if (!confirm(`确定要删除系列「${entry.title || entry.slug}」吗？这不会删除照片本身，只是移除这个系列分组。`)) return;
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      statusEl.textContent = "删除中…";
+      try {
+        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
+        const next = list.filter((s) => s.slug !== entry.slug);
+        await putFile(currentSettings, "src/data/series.json", next, sha, `chore(gallery): 删除系列 ${entry.slug}`);
+        card.remove();
+        log(`已删除系列：${entry.slug}`, "ok");
+      } catch (err) {
+        statusEl.textContent = `删除失败：${(err as Error).message}`;
+        log(`删除系列 ${entry.slug} 失败：${(err as Error).message}`, "error");
+      }
+    });
+
+    return card;
+  }
+
+  function escapeHtml(str: string) {
+    return str.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
+  }
+
+  function escapeAttr(str: string) {
+    return escapeHtml(str).replace(/"/g, "&quot;");
+  }
+
+  async function loadAll(settings: AdminSettings) {
+    if (!settings.owner || !settings.repo || !settings.token) return;
+    currentSettings = settings;
+    const statusEl = document.getElementById("load-status")!;
+    statusEl.textContent = "载入中…";
+    try {
+      const [{ content: photos }, { content: seriesList }] = await Promise.all([
+        getFile<Photo[]>(settings, "src/data/photos.json"),
+        getFile<SeriesEntry[]>(settings, "src/data/series.json"),
+      ]);
+      allPhotos = photos;
+      const container = document.getElementById("series-list")!;
+      container.innerHTML = "";
+      for (const entry of seriesList) {
+        container.appendChild(renderSeriesCard(entry));
+      }
+      statusEl.textContent = `已载入 ${seriesList.length} 个系列。`;
+    } catch (err) {
+      statusEl.textContent = `载入失败：${(err as Error).message}`;
+    }
+  }
+
+  window.addEventListener("admin-settings-ready", (e) => loadAll((e as CustomEvent).detail));
+  window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
+  document.getElementById("reload-btn")?.addEventListener("click", () => {
+    if (currentSettings) loadAll(currentSettings);
+  });
+
+  document.getElementById("new-series-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentSettings) {
+      log("请先在「连接设置」中填写并保存 GitHub 信息。", "error");
+      return;
+    }
+    const slug = (document.getElementById("ns-slug") as HTMLInputElement).value.trim();
+    const title = (document.getElementById("ns-title") as HTMLInputElement).value.trim();
+    const subtitle = (document.getElementById("ns-subtitle") as HTMLInputElement).value.trim();
+    const description = (document.getElementById("ns-description") as HTMLTextAreaElement).value.trim();
+    const layout = (document.getElementById("ns-layout") as HTMLSelectElement).value;
+    if (!slug || !title) {
+      log("请填写 slug 和标题。", "error");
+      return;
+    }
+    try {
+      const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
+      if (list.some((s) => s.slug === slug)) {
+        log(`已存在同名 slug 的系列：${slug}`, "error");
+        return;
+      }
+      // New series start unpublished (shown as "curating") until you explicitly publish them.
+      const entry: SeriesEntry = { slug, title, subtitle, description, layout, cover: "", photoIds: [], published: false };
+      list.push(entry);
+      await putFile(currentSettings, "src/data/series.json", list, sha, `feat(gallery): 新建系列 ${slug}`);
+      log(`已创建系列：${slug}`, "ok");
+      document.getElementById("series-list")!.appendChild(renderSeriesCard(entry));
+      (document.getElementById("new-series-form") as HTMLFormElement).reset();
+    } catch (err) {
+      log(`创建系列失败：${(err as Error).message}`, "error");
+    }
+  });
+</script>

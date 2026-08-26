@@ -2,7 +2,9 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import PhotoGrid from "../../components/PhotoGrid.astro";
 import Lightbox from "../../components/Lightbox.astro";
-import { getAllSeries, getSeriesBySlug, getSeriesPhotos } from "../../lib/content";
+import CuratingCurtain from "../../components/CuratingCurtain.astro";
+import FlowViewer from "../../components/FlowViewer.astro";
+import { getAllSeries, getSeriesBySlug, getSeriesPhotos, isPublished, resolveSeriesBackground } from "../../lib/content";
 import { withBase } from "../../lib/url";
 
 export function getStaticPaths() {
@@ -13,24 +15,46 @@ const { slug } = Astro.params;
 const series = getSeriesBySlug(slug!);
 if (!series) throw new Error(`Series not found: ${slug}`);
 const photos = getSeriesPhotos(series);
+const published = isPublished(series);
+const isFlow = series.layout === "flow";
+const background = resolveSeriesBackground(series);
 ---
 
-<BaseLayout title={`${series.title} · 回声画廊`} description={series.description}>
+<BaseLayout title={`${series.title} · 回声画廊`} description={series.description} background={background}>
   <section class="wrap header">
     <p class="eyebrow">Series</p>
     <h1>{series.title} <span>{series.subtitle}</span></h1>
     <p class="lede">{series.description}</p>
   </section>
 
-  <section class="wrap">
-    <PhotoGrid photos={photos} layout={series.layout} />
+  <section class={isFlow ? "flow-section" : "wrap"}>
+    {
+      !published ? (
+        <div class="wrap">
+          <CuratingCurtain title={series.title} subtitle={series.subtitle} />
+        </div>
+      ) : isFlow ? (
+        <FlowViewer
+          photos={photos}
+          direction={series.flowDirection}
+          backHref={withBase("/gallery/")}
+          accentColor={series.accentColor}
+        />
+      ) : (
+        <PhotoGrid photos={photos} layout={series.layout} frames={series.frames} canvasRatio={series.canvasRatio} />
+      )
+    }
   </section>
 
-  <nav class="wrap back">
-    <a href={withBase("/gallery/")}>&larr; 返回所有系列</a>
-  </nav>
+  {
+    !isFlow && (
+      <nav class="wrap back">
+        <a href={withBase("/gallery/")}>&larr; 返回所有系列</a>
+      </nav>
+    )
+  }
 
-  <Lightbox />
+  {published && !isFlow && <Lightbox />}
 </BaseLayout>
 
 <style>
@@ -66,5 +90,9 @@ const photos = getSeriesPhotos(series);
 
   .back a:hover {
     color: var(--ink);
+  }
+
+  .flow-section {
+    margin-bottom: var(--space-6);
   }
 </style>

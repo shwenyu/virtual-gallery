@@ -1,0 +1,325 @@
+---
+import type { Photo, FlowDirection } from "../lib/content";
+import { withBase } from "../lib/url";
+
+interface Props {
+  photos: Photo[];
+  direction?: FlowDirection;
+  backHref: string;
+  accentColor?: string;
+}
+
+const { photos, direction = "horizontal", backHref, accentColor } = Astro.props;
+---
+
+<div
+  class="flow"
+  id="flow"
+  data-direction={direction}
+  data-lights="off"
+  style={accentColor ? `--flow-accent:${accentColor}` : undefined}
+>
+  <a class="flow__back" href={backHref}>&larr; 返回所有系列</a>
+  <button class="flow__lights" id="flow-lights-toggle" type="button" aria-pressed="false">
+    <span class="flow__lights-icon" aria-hidden="true"></span>
+    <span class="flow__lights-label">开灯</span>
+  </button>
+
+  <div class="flow__track" id="flow-track" data-lightbox-group>
+    {
+      photos.map((photo, i) => (
+        <figure class="flow__slide">
+          <div class="flow__frame">
+            <img
+              src={photo.src}
+              width={photo.width}
+              height={photo.height}
+              alt={photo.alt}
+              loading={i < 2 ? "eager" : "lazy"}
+              decoding="async"
+            />
+          </div>
+          {photo.caption && <figcaption>{photo.caption}</figcaption>}
+        </figure>
+      ))
+    }
+  </div>
+
+  <button class="flow__nav flow__nav--prev" id="flow-prev" type="button" aria-label="上一张">&#8249;</button>
+  <button class="flow__nav flow__nav--next" id="flow-next" type="button" aria-label="下一张">&#8250;</button>
+  <div class="flow__counter" id="flow-counter">1 / {photos.length}</div>
+</div>
+
+<style>
+  .flow {
+    position: relative;
+    height: min(78vh, 760px);
+    min-height: 360px;
+    overflow: hidden;
+    background: var(--bg-raised);
+    transition: background 0.4s ease;
+  }
+
+  .flow[data-lights="on"] {
+    background: #15130f;
+  }
+
+  .flow[data-lights="on"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.55) 100%);
+  }
+
+  .flow__track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    scroll-behavior: smooth;
+  }
+
+  .flow[data-direction="horizontal"] .flow__track {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+  }
+
+  .flow[data-direction="vertical"] .flow__track {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+  }
+
+  .flow__track {
+    scrollbar-width: none;
+  }
+
+  .flow__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .flow__slide {
+    flex: 0 0 100%;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-5) var(--space-4);
+    box-sizing: border-box;
+  }
+
+  .flow__frame {
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+  }
+
+  .flow__frame img {
+    max-width: 100%;
+    max-height: calc(min(78vh, 760px) - 9rem);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: box-shadow 0.4s ease;
+  }
+
+  .flow[data-lights="on"] .flow__frame img {
+    box-shadow: 0 0 70px 22px color-mix(in srgb, var(--flow-accent, #a4744f) 45%, transparent);
+  }
+
+  .flow__slide figcaption {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    text-align: center;
+    transition: color 0.4s ease;
+  }
+
+  .flow[data-lights="on"] .flow__slide figcaption {
+    color: #cfcac0;
+  }
+
+  .flow__back,
+  .flow__lights,
+  .flow__nav,
+  .flow__counter {
+    position: absolute;
+    z-index: 5;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 0.78rem;
+    text-decoration: none;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.3s ease;
+  }
+
+  .flow[data-lights="on"] .flow__back,
+  .flow[data-lights="on"] .flow__lights,
+  .flow[data-lights="on"] .flow__nav,
+  .flow[data-lights="on"] .flow__counter {
+    opacity: 0.4;
+  }
+
+  .flow[data-lights="on"] .flow__back:hover,
+  .flow[data-lights="on"] .flow__lights:hover,
+  .flow[data-lights="on"] .flow__nav:hover,
+  .flow:has(.flow__counter:hover) .flow__counter {
+    opacity: 1;
+  }
+
+  .flow__back {
+    top: var(--space-2);
+    left: var(--space-2);
+    padding: 0.5em 0.9em;
+  }
+
+  .flow__lights {
+    top: var(--space-2);
+    right: var(--space-2);
+    padding: 0.5em 0.9em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+
+  .flow__lights-icon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+  }
+
+  .flow__lights[aria-pressed="true"] .flow__lights-icon {
+    background: var(--accent);
+    box-shadow: 0 0 6px 2px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  .flow__nav {
+    bottom: var(--space-2);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .flow__nav:disabled {
+    opacity: 0.25;
+    cursor: default;
+  }
+
+  .flow__nav--prev {
+    left: var(--space-2);
+  }
+
+  .flow__nav--next {
+    right: var(--space-2);
+  }
+
+  .flow__counter {
+    bottom: var(--space-2);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.35em 0.8em;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+</style>
+
+<script>
+  function initFlowViewer() {
+    const flow = document.getElementById("flow") as HTMLElement | null;
+    const track = document.getElementById("flow-track") as HTMLElement | null;
+    if (!flow || !track) return;
+
+    const slides = Array.from(track.children) as HTMLElement[];
+    const direction = flow.dataset.direction === "vertical" ? "vertical" : "horizontal";
+    const counter = document.getElementById("flow-counter") as HTMLElement;
+    const prevBtn = document.getElementById("flow-prev") as HTMLButtonElement;
+    const nextBtn = document.getElementById("flow-next") as HTMLButtonElement;
+    const lightsBtn = document.getElementById("flow-lights-toggle") as HTMLButtonElement;
+
+    let current = 0;
+
+    function syncFromScroll() {
+      const step = direction === "horizontal" ? track!.clientWidth : track!.clientHeight;
+      if (!step) return;
+      const pos = direction === "horizontal" ? track!.scrollLeft : track!.scrollTop;
+      const index = Math.round(pos / step);
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === slides.length - 1;
+    }
+
+    function goTo(index: number) {
+      const clamped = Math.max(0, Math.min(slides.length - 1, index));
+      const step = direction === "horizontal" ? track!.clientWidth : track!.clientHeight;
+      track!.scrollTo(
+        direction === "horizontal"
+          ? { left: clamped * step, behavior: "smooth" }
+          : { top: clamped * step, behavior: "smooth" }
+      );
+      // Counter is driven by the scroll listener so it can never disagree with what's on screen.
+    }
+
+    prevBtn?.addEventListener("click", () => goTo(current - 1));
+    nextBtn?.addEventListener("click", () => goTo(current + 1));
+
+    let rafId = 0;
+    track.addEventListener("scroll", () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(syncFromScroll);
+    });
+    window.addEventListener("resize", syncFromScroll);
+
+    flow.tabIndex = 0;
+    flow.addEventListener("keydown", (e) => {
+      if (direction === "horizontal") {
+        if (e.key === "ArrowRight") goTo(current + 1);
+        if (e.key === "ArrowLeft") goTo(current - 1);
+      } else {
+        if (e.key === "ArrowDown") goTo(current + 1);
+        if (e.key === "ArrowUp") goTo(current - 1);
+      }
+    });
+
+    const LIGHTS_KEY = "gallery-lights-on";
+    function setLights(on: boolean) {
+      flow!.dataset.lights = on ? "on" : "off";
+      lightsBtn.setAttribute("aria-pressed", String(on));
+      lightsBtn.querySelector(".flow__lights-label")!.textContent = on ? "关灯" : "开灯";
+      try {
+        localStorage.setItem(LIGHTS_KEY, on ? "1" : "0");
+      } catch {}
+    }
+
+    lightsBtn?.addEventListener("click", () => {
+      setLights(flow!.dataset.lights !== "on");
+    });
+
+    try {
+      setLights(localStorage.getItem(LIGHTS_KEY) === "1");
+    } catch {}
+
+    syncFromScroll();
+  }
+
+  initFlowViewer();
+  document.addEventListener("astro:page-load", initFlowViewer);
+</script>

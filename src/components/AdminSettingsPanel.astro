@@ -1,0 +1,118 @@
+<details class="panel" id="settings-panel">
+  <summary>连接设置</summary>
+  <div class="grid2">
+    <label>
+      Cloudinary Cloud Name
+      <input type="text" id="cf-cloud" placeholder="例如 dxxxxxxx" />
+    </label>
+    <label>
+      Cloudinary Upload Preset（unsigned）
+      <input type="text" id="cf-preset" placeholder="例如 gallery-unsigned" />
+    </label>
+    <label>
+      GitHub Owner
+      <input type="text" id="gh-owner" placeholder="你的 GitHub 用户名" />
+    </label>
+    <label>
+      GitHub Repo
+      <input type="text" id="gh-repo" placeholder="virtual-gallery" />
+    </label>
+    <label>
+      分支
+      <input type="text" id="gh-branch" placeholder="main" value="main" />
+    </label>
+    <label>
+      GitHub Token（fine-grained，仅 Contents: Read & Write）
+      <input type="password" id="gh-token" placeholder="github_pat_..." />
+    </label>
+  </div>
+  <button type="button" class="button" id="save-settings">保存到本机</button>
+  <span class="status" id="settings-status"></span>
+</details>
+
+<style>
+  .panel {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  .panel summary {
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+  }
+
+  .grid2 {
+    display: grid;
+    gap: var(--space-2);
+    margin-block: var(--space-2);
+  }
+
+  @media (min-width: 640px) {
+    .grid2 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    margin-bottom: var(--space-2);
+  }
+
+  input, select {
+    font: inherit;
+    padding: 0.55em 0.7em;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .status {
+    margin-left: var(--space-2);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+</style>
+
+<script>
+  import { loadSettings, saveSettings, type AdminSettings } from "../lib/adminGithub";
+
+  function fillSettingsForm(s: AdminSettings) {
+    (document.getElementById("cf-cloud") as HTMLInputElement).value = s.cloud ?? "";
+    (document.getElementById("cf-preset") as HTMLInputElement).value = s.preset ?? "";
+    (document.getElementById("gh-owner") as HTMLInputElement).value = s.owner ?? "";
+    (document.getElementById("gh-repo") as HTMLInputElement).value = s.repo ?? "virtual-gallery";
+    (document.getElementById("gh-branch") as HTMLInputElement).value = s.branch ?? "main";
+    (document.getElementById("gh-token") as HTMLInputElement).value = s.token ?? "";
+  }
+
+  function readSettingsForm(): AdminSettings {
+    return {
+      cloud: (document.getElementById("cf-cloud") as HTMLInputElement).value.trim(),
+      preset: (document.getElementById("cf-preset") as HTMLInputElement).value.trim(),
+      owner: (document.getElementById("gh-owner") as HTMLInputElement).value.trim(),
+      repo: (document.getElementById("gh-repo") as HTMLInputElement).value.trim(),
+      branch: (document.getElementById("gh-branch") as HTMLInputElement).value.trim() || "main",
+      token: (document.getElementById("gh-token") as HTMLInputElement).value.trim(),
+    };
+  }
+
+  fillSettingsForm(loadSettings());
+
+  document.getElementById("save-settings")?.addEventListener("click", () => {
+    const settings = readSettingsForm();
+    saveSettings(settings);
+    const statusEl = document.getElementById("settings-status")!;
+    statusEl.textContent = "已保存。";
+    window.dispatchEvent(new CustomEvent("admin-settings-saved", { detail: settings }));
+  });
+
+  // Let other admin scripts on the page know settings are ready once DOM is parsed.
+  window.dispatchEvent(new CustomEvent("admin-settings-ready", { detail: loadSettings() }));
+</script>

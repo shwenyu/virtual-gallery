@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=Allura&display=swap");
 
 :root {
   --bg: #f2f0eb;
@@ -64,6 +64,18 @@ h1, h2, h3 {
   margin: 0;
 }
 
+.badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  padding: 0.15em 0.5em;
+  margin-left: 0.6em;
+  vertical-align: middle;
+}
+
 .eyebrow {
   font-family: var(--font-body);
   font-size: 0.75rem;
@@ -89,10 +101,20 @@ h1, h2, h3 {
 }
 
 .site-nav__mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55em;
   font-family: var(--font-display);
   font-size: 1.15rem;
   letter-spacing: 0.02em;
   text-decoration: none;
+}
+
+.site-nav__script {
+  font-family: "Allura", cursive;
+  font-size: 1.5rem;
+  color: var(--ink-faint);
+  line-height: 1;
 }
 
 .site-nav__links {

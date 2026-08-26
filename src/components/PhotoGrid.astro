@@ -1,41 +1,84 @@
 ---
-import type { Photo, SeriesLayout } from "../lib/content";
+import type { Frame, Photo, SeriesLayout } from "../lib/content";
 
 interface Props {
   photos: Photo[];
   layout?: SeriesLayout;
+  frames?: Frame[];
+  canvasRatio?: string;
 }
 
-const { photos, layout = "grid" } = Astro.props;
+const { photos, layout = "grid", frames, canvasRatio = "3 / 2" } = Astro.props;
+
+const photoById = new Map(photos.map((p) => [p.id, p]));
+
+// For freeform layout, iterate frames (position data) in their stored order;
+// fall back to a simple cascade if a photo has no frame yet.
+const freeformItems =
+  layout === "freeform"
+    ? photos.map((photo, i) => {
+        const frame = frames?.find((f) => f.id === photo.id);
+        return (
+          frame ?? {
+            id: photo.id,
+            x: 4 + (i % 4) * 4,
+            y: 4 + (i % 4) * 4,
+            w: 30,
+            h: 30,
+            z: i,
+          }
+        );
+      })
+    : [];
 ---
 
-<div class={`photogrid photogrid--${layout}`} data-lightbox-group>
-  {
-    photos.map((photo, i) => (
-      <figure class="photogrid__item" style={`--i:${i % 6}`}>
-        <button
-          class="photogrid__frame"
-          type="button"
-          data-lightbox-trigger
-          data-src={photo.src}
-          data-caption={photo.caption ?? photo.alt}
-          data-index={i}
-          aria-label={`放大查看：${photo.alt}`}
-        >
-          <img
-            src={photo.src}
-            width={photo.width}
-            height={photo.height}
-            alt={photo.alt}
-            loading="lazy"
-            decoding="async"
-          />
-        </button>
-        {photo.caption && <figcaption>{photo.caption}</figcaption>}
-      </figure>
-    ))
-  }
-</div>
+{
+  layout === "freeform" ? (
+    <div class="photogrid photogrid--freeform" data-lightbox-group style={`--ratio:${canvasRatio}`}>
+      {freeformItems.map((frame, i) => {
+        const photo = photoById.get(frame.id);
+        if (!photo) return null;
+        return (
+          <figure
+            class="photogrid__item"
+            style={`--x:${frame.x};--y:${frame.y};--w:${frame.w};--h:${frame.h};--z:${frame.z ?? i}`}
+          >
+            <button
+              class="photogrid__frame"
+              type="button"
+              data-lightbox-trigger
+              data-src={photo.src}
+              data-caption={photo.caption ?? photo.alt}
+              data-index={i}
+              aria-label={`放大查看：${photo.alt}`}
+            >
+              <img src={photo.src} width={photo.width} height={photo.height} alt={photo.alt} loading="lazy" decoding="async" />
+            </button>
+          </figure>
+        );
+      })}
+    </div>
+  ) : (
+    <div class={`photogrid photogrid--${layout}`} data-lightbox-group>
+      {photos.map((photo, i) => (
+        <figure class="photogrid__item" style={`--i:${i % 6}`}>
+          <button
+            class="photogrid__frame"
+            type="button"
+            data-lightbox-trigger
+            data-src={photo.src}
+            data-caption={photo.caption ?? photo.alt}
+            data-index={i}
+            aria-label={`放大查看：${photo.alt}`}
+          >
+            <img src={photo.src} width={photo.width} height={photo.height} alt={photo.alt} loading="lazy" decoding="async" />
+          </button>
+          {photo.caption && <figcaption>{photo.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  )
+}
 
 <style>
   .photogrid {
@@ -45,6 +88,7 @@ const { photos, layout = "grid" } = Astro.props;
   .photogrid__frame {
     display: block;
     width: 100%;
+    height: 100%;
     padding: 0;
     border: 0;
     background: var(--bg-raised);
@@ -145,5 +189,23 @@ const { photos, layout = "grid" } = Astro.props;
     .photogrid--editorial .photogrid__item[style*="--i:5"] {
       grid-column: span 2;
     }
+  }
+
+  /* ---- freeform: hand-placed canvas, positions/sizes in % ---- */
+  .photogrid--freeform {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--ratio, 3 / 2);
+    background: var(--bg-raised);
+  }
+
+  .photogrid--freeform .photogrid__item {
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    top: calc(var(--y) * 1%);
+    width: calc(var(--w) * 1%);
+    height: calc(var(--h) * 1%);
+    z-index: var(--z, 0);
+    margin: 0;
   }
 </style>

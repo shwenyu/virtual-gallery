@@ -6,9 +6,11 @@ interface Props {
   title: string;
   description?: string;
   noindex?: boolean;
+  /** CSS color value (or color-mix() expression) to tint this page's background. Falls back to the site default. */
+  background?: string;
 }
 
-const { title, description = "个人摄影作品集与虚拟画廊", noindex = false } = Astro.props;
+const { title, description = "个人摄影作品集与虚拟画廊", noindex = false, background } = Astro.props;
 const currentPath = Astro.url.pathname;
 
 function isActive(href: string) {
@@ -26,10 +28,13 @@ function isActive(href: string) {
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <title>{title}</title>
   </head>
-  <body>
+  <body style={background ? `--bg: ${background};` : undefined}>
     <header class="site-nav">
       <div class="wrap site-nav__inner">
-        <a class="site-nav__mark" href={withBase("/")}>回声画廊</a>
+        <a class="site-nav__mark" href={withBase("/")}>
+          回声画廊
+          <span class="site-nav__script">echo gallery</span>
+        </a>
         <ul class="site-nav__links">
           <li><a href={withBase("/")} aria-current={isActive("/") ? "page" : undefined}>首页</a></li>
           <li><a href={withBase("/gallery/")} aria-current={isActive("/gallery") ? "page" : undefined}>画廊</a></li>

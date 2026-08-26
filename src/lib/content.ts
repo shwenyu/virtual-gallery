@@ -12,7 +12,18 @@ export interface Photo {
   tags?: string[];
 }
 
-export type SeriesLayout = "masonry" | "grid" | "editorial";
+export type SeriesLayout = "masonry" | "grid" | "editorial" | "freeform" | "flow";
+export type FlowDirection = "horizontal" | "vertical";
+export type BackgroundMode = "site" | "accent" | "custom";
+
+export interface Frame {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z?: number;
+}
 
 export interface Series {
   slug: string;
@@ -22,6 +33,34 @@ export interface Series {
   layout: SeriesLayout;
   cover: string;
   photoIds: string[];
+  /** Only used when layout is "freeform": percentage-based position/size per photo. */
+  frames?: Frame[];
+  /** Only used when layout is "freeform": aspect ratio of the canvas, e.g. "3 / 2". */
+  canvasRatio?: string;
+  /** Defaults to true when omitted — set to false to show a "curating" placeholder instead of the photos. */
+  published?: boolean;
+  /** Only used when layout is "flow": scroll direction for the immersive viewer. */
+  flowDirection?: FlowDirection;
+  /** A representative accent color for this series (hex), auto-extracted or hand-picked. */
+  accentColor?: string;
+  /** How the series page background is derived: site default, tinted with accentColor, or a custom color. Defaults to "site". */
+  backgroundMode?: BackgroundMode;
+  /** Only used when backgroundMode is "custom". */
+  customBackground?: string;
+}
+
+export function isPublished(s: Series): boolean {
+  return s.published !== false;
+}
+
+/** Resolves the CSS background color a series page should use, or undefined for the site default. */
+export function resolveSeriesBackground(s: Series): string | undefined {
+  const mode = s.backgroundMode ?? "site";
+  if (mode === "custom" && s.customBackground) return s.customBackground;
+  if (mode === "accent" && s.accentColor) {
+    return `color-mix(in srgb, ${s.accentColor} 14%, var(--bg) 86%)`;
+  }
+  return undefined;
 }
 
 const photos = photosData as Photo[];

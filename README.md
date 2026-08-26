@@ -9,20 +9,50 @@
 ```
 src/
 ├── data/
-│   ├── photos.json     照片清单（id / 图片地址 / 尺寸 / 说明 / 标签）
-│   └── series.json     系列（策展分组）：标题、排版风格、照片顺序
-├── lib/content.ts       读取上面两份数据的工具函数
+│   ├── photos.json     照片清单（id / 图片地址 / 尺寸 / 名称 / 说明 / 标签）
+│   └── series.json     系列（策展分组）：标题、简介、排版、发布状态、主题色、自由排版坐标
+├── lib/
+│   ├── content.ts       读取上面两份数据的工具函数
+│   ├── adminGithub.ts   后台共用的 GitHub / Cloudinary 读写封装
+│   └── extractColor.ts  从图片提取核心色彩
 ├── layouts/BaseLayout.astro
 ├── components/
-│   ├── PhotoGrid.astro  三种排版：grid / masonry / editorial
-│   └── Lightbox.astro   点击放大查看
+│   ├── PhotoGrid.astro       grid / masonry / editorial / freeform 四种排版
+│   ├── FlowViewer.astro      flow 沉浸式逐张浏览 + 展厅灯光模式
+│   ├── CuratingCurtain.astro 未发布系列的「策展中」幕布
+│   └── Lightbox.astro        点击放大查看
 └── pages/
     ├── index.astro       首页
     ├── gallery/index.astro     系列列表
     ├── gallery/[slug].astro    单个系列详情页
     ├── about.astro
-    └── admin/index.astro       上传后台（不出现在导航栏中）
+    └── admin/              后台（都不出现在导航栏中）
+        ├── index.astro          上传照片
+        ├── photos/index.astro   照片管理（改名称/说明/标签、删除）
+        ├── series/index.astro   系列管理（标题、简介、排版、发布、主题色）
+        └── layout/index.astro   自由排版（拖拽缩放）
 ```
+
+## 画廊功能
+
+**五种排版**，每个系列可在「系列管理」里单独选择：
+
+| 排版 | 效果 |
+| --- | --- |
+| `grid` | 均匀网格，统一裁切比例 |
+| `masonry` | 瀑布流，保留照片原始比例 |
+| `editorial` | 杂志式大小交错的节奏感排布 |
+| `freeform` | 自由拖拽摆放，位置和大小由你手工编排 |
+| `flow` | 沉浸式逐张浏览，可选横向或纵向推进 |
+
+**展厅灯光**：`flow` 排版的页面右上角有「开灯」开关。打开后背景变暗、四周压暗，
+每张照片背后亮起一圈与主题色呼应的轮廓光，模拟真实展厅的打光。这个偏好会记在浏览器里。
+
+**策展中 / 已发布**：系列可以设为未发布状态，此时画廊页显示一块「策展中，敬请期待」的幕布，
+照片不会露出。新建的系列默认是未发布的，在「系列管理」里点「发布」才会正式展出。
+
+**主题色与背景**：每个系列可以有自己的核心色彩（可以从封面自动提取，也可以手动挑），
+页面背景可以选择跟随网站默认、用主题色低饱和度淡淡渲染、或完全自定义一个颜色。
 
 ## 本地开发
 
@@ -74,10 +104,21 @@ npm run dev
 
 > 安全提示：不要在公共/共享电脑上使用这个后台；用完可以随时在 GitHub 设置里吊销该 token。
 
+## 后台四个页面
+
+所有后台页面都不出现在导航栏里，顶部有一排小标签可以互相跳转。
+
+| 页面 | 用途 |
+| --- | --- |
+| `/admin/` | 上传照片。可以分多次选择文件（不会清空之前选的），每张都有缩略图预览、可单独移除；填统一说明文字方便批量上传 |
+| `/admin/photos/` | 逐张修改照片的名称、说明文字、标签，或删除照片（会自动清理各系列里对它的引用） |
+| `/admin/series/` | 系列的标题、副标题、简介、排版、封面、照片顺序、发布状态、主题色与背景 |
+| `/admin/layout/` | `freeform` 排版的可视化编辑器：拖动照片改位置，拖右下角改大小，可选画布比例 |
+
 ## 调整画廊编排
 
-- 系列的呈现顺序、标题、描述、排版风格（`grid` / `masonry` / `editorial`）都在
-  `src/data/series.json` 里，可以直接编辑或通过后台调整。
+- 系列的呈现顺序、标题、描述、排版风格都在 `src/data/series.json` 里，
+  可以直接编辑，也可以全部通过后台调整。
 - 一张照片可以出现在多个系列里，只要把它的 `id` 加进对应系列的 `photoIds`。
 - 想要新的排版节奏，可以在 `src/components/PhotoGrid.astro` 里加新的 CSS 变体。
 

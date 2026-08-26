@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import AdminNav from "../../components/AdminNav.astro";
+import AdminSettingsPanel from "../../components/AdminSettingsPanel.astro";
 ---
 
 <BaseLayout title="后台上传 · 回声画廊" description="仅站主本人使用的照片上传与策展后台" noindex>
@@ -11,45 +13,17 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       条目信息通过你的 GitHub 令牌直接提交到仓库。不会有任何密钥被打包进网站代码。
       请不要在公共/共享电脑上使用，用完可在 GitHub 设置中随时吊销令牌。
     </p>
+    <AdminNav active="upload" />
 
-    <details class="panel" id="settings-panel">
-      <summary>连接设置</summary>
-      <div class="grid2">
-        <label>
-          Cloudinary Cloud Name
-          <input type="text" id="cf-cloud" placeholder="例如 dxxxxxxx" />
-        </label>
-        <label>
-          Cloudinary Upload Preset（unsigned）
-          <input type="text" id="cf-preset" placeholder="例如 gallery-unsigned" />
-        </label>
-        <label>
-          GitHub Owner
-          <input type="text" id="gh-owner" placeholder="你的 GitHub 用户名" />
-        </label>
-        <label>
-          GitHub Repo
-          <input type="text" id="gh-repo" placeholder="virtual-gallery" />
-        </label>
-        <label>
-          分支
-          <input type="text" id="gh-branch" placeholder="main" value="main" />
-        </label>
-        <label>
-          GitHub Token（fine-grained，仅 Contents: Read & Write）
-          <input type="password" id="gh-token" placeholder="github_pat_..." />
-        </label>
-      </div>
-      <button type="button" class="button" id="save-settings">保存到本机</button>
-      <span class="status" id="settings-status"></span>
-    </details>
+    <AdminSettingsPanel />
 
     <form class="panel upload-form" id="upload-form">
       <h2>新增照片</h2>
       <label>
-        选择图片文件（可多选）
-        <input type="file" id="files" accept="image/*" multiple required />
+        选择图片文件（可以分多次选择，不会清空之前已选的；每张都有预览，可单独移除）
+        <input type="file" id="files" accept="image/*" multiple />
       </label>
+      <ul class="staged-list" id="staged-list"></ul>
 
       <div class="grid2">
         <label>
@@ -72,6 +46,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <option value="grid">grid（均匀网格）</option>
             <option value="masonry">masonry（瀑布流）</option>
             <option value="editorial">editorial（杂志式节奏）</option>
+            <option value="freeform">freeform（自由拖拽，去"自由排版"页调整）</option>
+            <option value="flow">flow（沉浸式逐张浏览，去"系列管理"页调整方向）</option>
           </select>
         </label>
       </div>
@@ -133,12 +109,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     background: var(--bg-raised);
   }
 
-  .panel summary {
-    cursor: pointer;
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-  }
-
   .panel h2 {
     font-size: 1.2rem;
     margin-bottom: var(--space-2);
@@ -173,10 +143,52 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     color: var(--ink);
   }
 
-  .status {
-    margin-left: var(--space-2);
-    font-size: 0.8rem;
+  .staged-list {
+    list-style: none;
+    margin: var(--space-2) 0 var(--space-3);
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .staged-list li {
+    position: relative;
+    width: 84px;
+  }
+
+  .staged-list img {
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+  }
+
+  .staged-list .staged-name {
+    display: block;
+    font-size: 0.65rem;
     color: var(--ink-faint);
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .staged-list .staged-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
   }
 
   .log ol {
@@ -196,35 +208,16 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 </style>
 
 <script>
-  interface Settings {
-    cloud: string;
-    preset: string;
-    owner: string;
-    repo: string;
-    branch: string;
-    token: string;
-  }
+  import {
+    type AdminSettings,
+    getFile,
+    putFile,
+    uploadToCloudinary,
+    optimizedUrl,
+    slugifyId,
+  } from "../../lib/adminGithub";
 
-  const STORAGE_KEY = "gallery-admin-settings";
-
-  function loadSettings(): Settings {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    } catch {
-      return {} as Settings;
-    }
-  }
-
-  function fillSettingsForm(s: Settings) {
-    (document.getElementById("cf-cloud") as HTMLInputElement).value = s.cloud ?? "";
-    (document.getElementById("cf-preset") as HTMLInputElement).value = s.preset ?? "";
-    (document.getElementById("gh-owner") as HTMLInputElement).value = s.owner ?? "";
-    (document.getElementById("gh-repo") as HTMLInputElement).value = s.repo ?? "virtual-gallery";
-    (document.getElementById("gh-branch") as HTMLInputElement).value = s.branch ?? "main";
-    (document.getElementById("gh-token") as HTMLInputElement).value = s.token ?? "";
-  }
-
-  function readSettingsForm(): Settings {
+  function readSettingsForm(): AdminSettings {
     return {
       cloud: (document.getElementById("cf-cloud") as HTMLInputElement).value.trim(),
       preset: (document.getElementById("cf-preset") as HTMLInputElement).value.trim(),
@@ -235,67 +228,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     };
   }
 
-  fillSettingsForm(loadSettings());
-
-  document.getElementById("save-settings")?.addEventListener("click", async () => {
-    const settings = readSettingsForm();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    const statusEl = document.getElementById("settings-status")!;
-    statusEl.textContent = "已保存。正在读取系列列表…";
-    try {
-      await populateSeriesSelect(settings);
-      statusEl.textContent = "已保存，系列列表已更新。";
-    } catch (e) {
-      statusEl.textContent = `已保存，但读取系列列表失败：${(e as Error).message}`;
-    }
-  });
-
-  function ghHeaders(token: string) {
-    return {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    };
-  }
-
-  function b64EncodeUtf8(str: string) {
-    return btoa(unescape(encodeURIComponent(str)));
-  }
-
-  function b64DecodeUtf8(b64: string) {
-    return decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
-  }
-
-  async function getFile(settings: Settings, path: string) {
-    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}?ref=${settings.branch}`;
-    const res = await fetch(url, { headers: ghHeaders(settings.token) });
-    if (!res.ok) throw new Error(`读取 ${path} 失败：${res.status} ${await res.text()}`);
-    const data = await res.json();
-    return { sha: data.sha as string, content: JSON.parse(b64DecodeUtf8(data.content)) };
-  }
-
-  async function putFile(settings: Settings, path: string, content: unknown, sha: string, message: string) {
-    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: { ...ghHeaders(settings.token), "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        content: b64EncodeUtf8(JSON.stringify(content, null, 2) + "\n"),
-        sha,
-        branch: settings.branch,
-      }),
-    });
-    if (!res.ok) throw new Error(`写入 ${path} 失败：${res.status} ${await res.text()}`);
-    return res.json();
-  }
-
-  async function populateSeriesSelect(settings: Settings) {
+  async function populateSeriesSelect(settings: AdminSettings) {
     const select = document.getElementById("series-select") as HTMLSelectElement;
     if (!settings.owner || !settings.repo || !settings.token) return;
-    const { content } = await getFile(settings, "src/data/series.json");
+    const { content } = await getFile<Array<{ slug: string; title: string }>>(settings, "src/data/series.json");
     select.innerHTML = '<option value="">（不加入任何系列）</option>';
-    for (const s of content as Array<{ slug: string; title: string }>) {
+    for (const s of content) {
       const opt = document.createElement("option");
       opt.value = s.slug;
       opt.textContent = `${s.title} (${s.slug})`;
@@ -303,12 +241,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
   }
 
-  {
-    const initial = loadSettings();
-    if (initial.owner && initial.repo && initial.token) {
-      populateSeriesSelect(initial).catch(() => {});
-    }
-  }
+  window.addEventListener("admin-settings-ready", (e) => populateSeriesSelect((e as CustomEvent).detail).catch(() => {}));
+  window.addEventListener("admin-settings-saved", (e) => populateSeriesSelect((e as CustomEvent).detail).catch(() => {}));
 
   function log(message: string, state: "info" | "ok" | "error" = "info") {
     const panel = document.getElementById("log")!;
@@ -321,23 +255,51 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     li.scrollIntoView({ block: "nearest" });
   }
 
-  async function uploadToCloudinary(settings: Settings, file: File) {
-    const url = `https://api.cloudinary.com/v1_1/${settings.cloud}/image/upload`;
-    const form = new FormData();
-    form.append("file", file);
-    form.append("upload_preset", settings.preset);
-    const res = await fetch(url, { method: "POST", body: form });
-    if (!res.ok) throw new Error(`Cloudinary 上传失败：${res.status} ${await res.text()}`);
-    return res.json();
+  // Staged file selection: accumulates across multiple picks (native <input>
+  // replaces its FileList every time, so we keep our own list + object-URL previews).
+  let stagedFiles: File[] = [];
+  const objectUrls = new WeakMap<File, string>();
+
+  function isSameFile(a: File, b: File) {
+    return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
   }
 
-  function optimizedUrl(secureUrl: string) {
-    return secureUrl.replace("/upload/", "/upload/f_auto,q_auto/");
+  function renderStaged() {
+    const list = document.getElementById("staged-list")!;
+    list.innerHTML = "";
+    for (const file of stagedFiles) {
+      let url = objectUrls.get(file);
+      if (!url) {
+        url = URL.createObjectURL(file);
+        objectUrls.set(file, url);
+      }
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <img src="${url}" alt="" />
+        <span class="staged-name">${file.name}</span>
+        <button type="button" class="staged-remove" aria-label="移除 ${file.name}">&times;</button>
+      `;
+      li.querySelector(".staged-remove")?.addEventListener("click", () => {
+        const u = objectUrls.get(file);
+        if (u) URL.revokeObjectURL(u);
+        stagedFiles = stagedFiles.filter((f) => f !== file);
+        renderStaged();
+      });
+      list.appendChild(li);
+    }
   }
 
-  function slugifyId(publicId: string) {
-    return "p_" + publicId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(-40);
-  }
+  document.getElementById("files")?.addEventListener("change", (e) => {
+    const input = e.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    for (const file of picked) {
+      if (!stagedFiles.some((f) => isSameFile(f, file))) {
+        stagedFiles.push(file);
+      }
+    }
+    input.value = ""; // reset so picking again fires "change" and doesn't replace the selection
+    renderStaged();
+  });
 
   document.getElementById("upload-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -351,8 +313,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return;
     }
 
-    const filesInput = document.getElementById("files") as HTMLInputElement;
-    const files = Array.from(filesInput.files ?? []);
+    const files = [...stagedFiles];
     if (files.length === 0) {
       log("请先选择至少一张图片。", "error");
       return;
@@ -381,7 +342,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         newPhotoIds.push(id);
         log(`Cloudinary 上传成功：${file.name} → ${id}`, "ok");
 
-        const { sha, content: photos } = await getFile(settings, "src/data/photos.json");
+        const { sha, content: photos } = await getFile<any[]>(settings, "src/data/photos.json");
         photos.push({
           id,
           src: optimizedUrl(result.secure_url),
@@ -394,6 +355,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         });
         await putFile(settings, "src/data/photos.json", photos, sha, `feat(gallery): 新增照片 ${id}`);
         log(`已写入 photos.json：${id}`, "ok");
+
+        // Uploaded successfully — drop it from the staged list; keep failed ones for retry.
+        const url = objectUrls.get(file);
+        if (url) URL.revokeObjectURL(url);
+        stagedFiles = stagedFiles.filter((f) => f !== file);
+        renderStaged();
       } catch (err) {
         log(`失败：${file.name} — ${(err as Error).message}`, "error");
       }
@@ -401,7 +368,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     if (targetSeriesSlug && newPhotoIds.length > 0) {
       try {
-        const { sha, content: seriesList } = await getFile(settings, "src/data/series.json");
+        const { sha, content: seriesList } = await getFile<any[]>(settings, "src/data/series.json");
         let entry = seriesList.find((s: { slug: string }) => s.slug === targetSeriesSlug);
         if (!entry) {
           entry = {
@@ -412,6 +379,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             layout: newSeriesLayout,
             cover: newPhotoIds[0],
             photoIds: [],
+            published: false,
           };
           seriesList.push(entry);
           log(`已新建系列：${targetSeriesSlug}`, "ok");

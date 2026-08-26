@@ -1,0 +1,336 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import AdminNav from "../../../components/AdminNav.astro";
+import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
+---
+
+<BaseLayout title="照片管理 · 回声画廊" description="修改每一张照片的名称与说明文字" noindex>
+  <section class="wrap admin">
+    <p class="eyebrow">Admin</p>
+    <h1>照片管理</h1>
+    <p class="note">
+      上传时填写的是统一说明文字，方便批量上传；进来这里可以单独修改每一张照片的名称
+      （alt，用于无障碍朗读和默认标题）、说明文字（caption，画廊里显示的文字）和标签。
+    </p>
+    <AdminNav active="photos" />
+
+    <AdminSettingsPanel />
+
+    <div class="panel" id="load-panel">
+      <input type="search" id="filter-input" placeholder="按 id / 名称 / 说明 / 标签搜索…" />
+      <button type="button" class="button" id="reload-btn">重新载入</button>
+      <span class="status" id="load-status"></span>
+    </div>
+
+    <div id="photo-list" class="photo-grid"></div>
+
+    <div class="panel log" id="log" hidden>
+      <h2>执行日志</h2>
+      <ol id="log-list"></ol>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .admin {
+    padding-block: var(--space-5) var(--space-6);
+    max-width: 980px;
+  }
+
+  .admin h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .note {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .panel {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  #load-panel {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  #filter-input {
+    flex: 1;
+    font: inherit;
+    padding: 0.55em 0.7em;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .status {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+
+  .photo-grid {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  @media (min-width: 760px) {
+    .photo-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .log ol {
+    padding-left: 1.2em;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+
+  .log li[data-state="error"] {
+    color: #a4402f;
+  }
+
+  .log li[data-state="ok"] {
+    color: #4b6b4f;
+  }
+
+  :global(.photo-card) {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+  }
+
+  :global(.photo-card img) {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+  }
+
+  :global(.photo-card__fields) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  :global(.photo-card__id) {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+
+  :global(.photo-card input),
+  :global(.photo-card textarea) {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.4em 0.6em;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  :global(.photo-card textarea) {
+    resize: vertical;
+  }
+
+  :global(.photo-card__actions) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: 0.2rem;
+  }
+
+  :global(.button--small) {
+    padding: 0.35em 0.8em;
+    font-size: 0.75rem;
+  }
+
+  :global(.button--danger) {
+    border-color: #a4402f;
+    color: #a4402f;
+  }
+
+  :global(.button--danger:hover) {
+    background: #a4402f;
+    color: var(--bg);
+  }
+</style>
+
+<script>
+  import { type AdminSettings, getFile, putFile } from "../../../lib/adminGithub";
+
+  interface Photo {
+    id: string;
+    src: string;
+    width: number;
+    height: number;
+    alt: string;
+    caption?: string;
+    capturedAt?: string;
+    tags?: string[];
+  }
+
+  interface SeriesEntry {
+    slug: string;
+    photoIds: string[];
+    cover: string;
+    frames?: { id: string }[];
+  }
+
+  let currentSettings: AdminSettings | null = null;
+  let allPhotos: Photo[] = [];
+
+  function log(message: string, state: "info" | "ok" | "error" = "info") {
+    const panel = document.getElementById("log")!;
+    const list = document.getElementById("log-list")!;
+    panel.hidden = false;
+    const li = document.createElement("li");
+    li.textContent = message;
+    li.dataset.state = state;
+    list.appendChild(li);
+    li.scrollIntoView({ block: "nearest" });
+  }
+
+  function escapeHtml(str: string) {
+    return str.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
+  }
+
+  function escapeAttr(str: string) {
+    return escapeHtml(str).replace(/"/g, "&quot;");
+  }
+
+  function renderPhotoCard(photo: Photo): HTMLElement {
+    const card = document.createElement("div");
+    card.className = "photo-card";
+    card.dataset.id = photo.id;
+    card.innerHTML = `
+      <img src="${escapeAttr(photo.src)}" alt="" loading="lazy" />
+      <div class="photo-card__fields">
+        <span class="photo-card__id">${escapeHtml(photo.id)} · ${photo.width}×${photo.height}</span>
+        <input type="text" class="f-alt" placeholder="名称（alt）" value="${escapeAttr(photo.alt ?? "")}" />
+        <input type="text" class="f-caption" placeholder="说明文字（caption）" value="${escapeAttr(photo.caption ?? "")}" />
+        <input type="text" class="f-tags" placeholder="标签，逗号分隔" value="${escapeAttr((photo.tags ?? []).join(", "))}" />
+        <div class="photo-card__actions">
+          <button type="button" class="button button--small save-btn">保存</button>
+          <button type="button" class="button button--small button--danger delete-btn">删除照片</button>
+          <span class="status card-status"></span>
+        </div>
+      </div>
+    `;
+
+    card.querySelector(".save-btn")?.addEventListener("click", async () => {
+      if (!currentSettings) return;
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      statusEl.textContent = "保存中…";
+      try {
+        const { sha, content: list } = await getFile<Photo[]>(currentSettings, "src/data/photos.json");
+        const target = list.find((p) => p.id === photo.id);
+        if (!target) throw new Error("在仓库里没找到这张照片");
+        target.alt = (card.querySelector(".f-alt") as HTMLInputElement).value.trim();
+        target.caption = (card.querySelector(".f-caption") as HTMLInputElement).value.trim();
+        target.tags = (card.querySelector(".f-tags") as HTMLInputElement).value
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+        await putFile(currentSettings, "src/data/photos.json", list, sha, `chore(gallery): 更新照片信息 ${photo.id}`);
+        statusEl.textContent = "已保存。";
+        log(`已保存：${photo.id}`, "ok");
+      } catch (err) {
+        statusEl.textContent = `保存失败：${(err as Error).message}`;
+        log(`保存 ${photo.id} 失败：${(err as Error).message}`, "error");
+      }
+    });
+
+    card.querySelector(".delete-btn")?.addEventListener("click", async () => {
+      if (!currentSettings) return;
+      if (!confirm(`确定要删除照片 ${photo.id} 吗？会同时从所有系列里移除它（不会删除 Cloudinary 上的原图）。`)) return;
+      const statusEl = card.querySelector(".card-status") as HTMLElement;
+      statusEl.textContent = "删除中…";
+      try {
+        const { sha, content: list } = await getFile<Photo[]>(currentSettings, "src/data/photos.json");
+        const next = list.filter((p) => p.id !== photo.id);
+        await putFile(currentSettings, "src/data/photos.json", next, sha, `chore(gallery): 删除照片 ${photo.id}`);
+
+        const { sha: seriesSha, content: seriesList } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
+        let seriesChanged = false;
+        for (const s of seriesList) {
+          if (s.photoIds.includes(photo.id)) {
+            s.photoIds = s.photoIds.filter((id) => id !== photo.id);
+            seriesChanged = true;
+          }
+          if (s.frames) {
+            const before = s.frames.length;
+            s.frames = s.frames.filter((f) => f.id !== photo.id);
+            if (s.frames.length !== before) seriesChanged = true;
+          }
+          if (s.cover === photo.id) {
+            s.cover = s.photoIds[0] ?? "";
+            seriesChanged = true;
+          }
+        }
+        if (seriesChanged) {
+          await putFile(currentSettings, "src/data/series.json", seriesList, seriesSha, `chore(gallery): 清理已删除照片 ${photo.id} 的引用`);
+        }
+
+        card.remove();
+        log(`已删除照片：${photo.id}`, "ok");
+      } catch (err) {
+        statusEl.textContent = `删除失败：${(err as Error).message}`;
+        log(`删除 ${photo.id} 失败：${(err as Error).message}`, "error");
+      }
+    });
+
+    return card;
+  }
+
+  function renderList(photos: Photo[]) {
+    const container = document.getElementById("photo-list")!;
+    container.innerHTML = "";
+    for (const photo of photos) {
+      container.appendChild(renderPhotoCard(photo));
+    }
+  }
+
+  async function loadAll(settings: AdminSettings) {
+    if (!settings.owner || !settings.repo || !settings.token) return;
+    currentSettings = settings;
+    const statusEl = document.getElementById("load-status")!;
+    statusEl.textContent = "载入中…";
+    try {
+      const { content: photos } = await getFile<Photo[]>(settings, "src/data/photos.json");
+      allPhotos = photos;
+      renderList(allPhotos);
+      statusEl.textContent = `已载入 ${photos.length} 张照片。`;
+    } catch (err) {
+      statusEl.textContent = `载入失败：${(err as Error).message}`;
+    }
+  }
+
+  document.getElementById("filter-input")?.addEventListener("input", (e) => {
+    const q = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    if (!q) {
+      renderList(allPhotos);
+      return;
+    }
+    const filtered = allPhotos.filter((p) =>
+      [p.id, p.alt, p.caption, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+    renderList(filtered);
+  });
+
+  window.addEventListener("admin-settings-ready", (e) => loadAll((e as CustomEvent).detail));
+  window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
+  document.getElementById("reload-btn")?.addEventListener("click", () => {
+    if (currentSettings) loadAll(currentSettings);
+  });
+</script>

@@ -1,0 +1,67 @@
+---
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+
+const { title, subtitle } = Astro.props;
+---
+
+<div class="curtain">
+  <div class="curtain__folds" aria-hidden="true"></div>
+  <div class="curtain__content">
+    <p class="eyebrow">Curating</p>
+    <h2>{title} {subtitle && <span>{subtitle}</span>}</h2>
+    <p class="curtain__line">这一组正在编排中，敬请期待。</p>
+  </div>
+</div>
+
+<style>
+  .curtain {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 21 / 9;
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+  }
+
+  .curtain__folds {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--ink) 4%, transparent) 0px,
+        transparent 3px,
+        transparent 46px,
+        color-mix(in srgb, var(--ink) 4%, transparent) 49px
+      ),
+      radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--ink) 7%, transparent), transparent 60%);
+  }
+
+  .curtain__content {
+    position: relative;
+    text-align: center;
+    padding: var(--space-3);
+  }
+
+  .curtain__content h2 {
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    margin-block: var(--space-1) var(--space-2);
+  }
+
+  .curtain__content h2 span {
+    color: var(--ink-faint);
+    font-size: 0.7em;
+    margin-left: 0.5em;
+  }
+
+  .curtain__line {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+</style>

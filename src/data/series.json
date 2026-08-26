@@ -25,5 +25,33 @@
     "layout": "grid",
     "cover": "p008",
     "photoIds": ["p008", "p011", "p005", "p002"]
+  },
+  {
+    "slug": "loose-notes",
+    "title": "Loose Notes",
+    "subtitle": "散记",
+    "description": "手工摆放的一组随笔式合集，用来试验自由排版。",
+    "layout": "freeform",
+    "cover": "p004",
+    "photoIds": ["p004", "p001", "p009", "p006"],
+    "canvasRatio": "3 / 2",
+    "frames": [
+      { "id": "p004", "x": 4, "y": 6, "w": 44, "h": 50, "z": 1 },
+      { "id": "p001", "x": 50, "y": 4, "w": 24, "h": 34, "z": 2 },
+      { "id": "p009", "x": 76, "y": 4, "w": 20, "h": 60, "z": 3 },
+      { "id": "p006", "x": 50, "y": 40, "w": 24, "h": 24, "z": 4 }
+    ]
+  },
+  {
+    "slug": "passage",
+    "title": "Passage",
+    "subtitle": "行经",
+    "description": "沉浸式逐张浏览，模拟走过一条展廊的节奏。",
+    "layout": "flow",
+    "flowDirection": "horizontal",
+    "cover": "p005",
+    "photoIds": ["p005", "p011", "p006", "p010"],
+    "accentColor": "#3d6b8a",
+    "backgroundMode": "accent"
   }
 ]
