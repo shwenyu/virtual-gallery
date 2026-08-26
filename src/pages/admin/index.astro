@@ -333,17 +333,19 @@ import AdminSettingsPanel from "../../components/AdminSettingsPanel.astro";
     const targetSeriesSlug = newSeriesSlug || existingSeriesSlug;
 
     const newPhotoIds: string[] = [];
+    const newEntries: any[] = [];
+    const uploadedFiles: File[] = [];
 
+    // Upload every file to Cloudinary first, then write photos.json exactly once.
+    // A read-modify-write per file loses entries: the contents API can serve a stale
+    // copy right after a write, so consecutive writes clobber each other.
     for (const file of files) {
       try {
         log(`上传中：${file.name} …`);
         const result = await uploadToCloudinary(settings, file);
         const id = slugifyId(result.public_id);
         newPhotoIds.push(id);
-        log(`Cloudinary 上传成功：${file.name} → ${id}`, "ok");
-
-        const { sha, content: photos } = await getFile<any[]>(settings, "src/data/photos.json");
-        photos.push({
+        newEntries.push({
           id,
           src: optimizedUrl(result.secure_url),
           width: result.width,
@@ -353,16 +355,36 @@ import AdminSettingsPanel from "../../components/AdminSettingsPanel.astro";
           capturedAt: capturedAt || undefined,
           tags,
         });
-        await putFile(settings, "src/data/photos.json", photos, sha, `feat(gallery): 新增照片 ${id}`);
-        log(`已写入 photos.json：${id}`, "ok");
-
-        // Uploaded successfully — drop it from the staged list; keep failed ones for retry.
-        const url = objectUrls.get(file);
-        if (url) URL.revokeObjectURL(url);
-        stagedFiles = stagedFiles.filter((f) => f !== file);
-        renderStaged();
+        uploadedFiles.push(file);
+        log(`Cloudinary 上传成功：${file.name} → ${id}`, "ok");
       } catch (err) {
         log(`失败：${file.name} — ${(err as Error).message}`, "error");
+      }
+    }
+
+    if (newEntries.length > 0) {
+      try {
+        const { sha, content: photos } = await getFile<any[]>(settings, "src/data/photos.json");
+        photos.push(...newEntries);
+        await putFile(
+          settings,
+          "src/data/photos.json",
+          photos,
+          sha,
+          `feat(gallery): 新增 ${newEntries.length} 张照片`
+        );
+        log(`已写入 photos.json：${newEntries.length} 张`, "ok");
+
+        for (const file of uploadedFiles) {
+          const url = objectUrls.get(file);
+          if (url) URL.revokeObjectURL(url);
+        }
+        stagedFiles = stagedFiles.filter((f) => !uploadedFiles.includes(f));
+        renderStaged();
+      } catch (err) {
+        log(`写入 photos.json 失败：${(err as Error).message}`, "error");
+        log("图片已经传到 Cloudinary，但仓库没更新；请稍后重试提交。", "error");
+        return;
       }
     }
 
