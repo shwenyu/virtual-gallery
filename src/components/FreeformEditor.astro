@@ -150,7 +150,7 @@ const { slug } = Astro.props;
 </style>
 
 <script>
-  import { type AdminSettings, getFile, putFile, loadSettings } from "../lib/adminGithub";
+  import { type AdminSettings, updateJsonFile, loadSettings } from "../lib/adminGithub";
   import { isUnlocked } from "../lib/adminAuth";
 
   interface Frame {
@@ -302,20 +302,25 @@ const { slug } = Astro.props;
       }
       statusEl.textContent = "保存中…";
       try {
-        const { sha, content: list } = await getFile<any[]>(settings, "src/data/series.json");
-        const target = list.find((s: { slug: string }) => s.slug === slug);
-        if (!target) throw new Error("仓库里没找到这个系列");
-        target.layout = "freeform";
-        target.canvasRatio = ratioSelect.value;
-        target.frames = frames.map((f) => ({
-          id: f.id,
-          x: Math.round(f.x * 10) / 10,
-          y: Math.round(f.y * 10) / 10,
-          w: Math.round(f.w * 10) / 10,
-          h: Math.round(f.h * 10) / 10,
-          z: f.z,
-        }));
-        await putFile(settings, "src/data/series.json", list, sha, `chore(gallery): 更新 ${slug} 的自由排版`);
+        await updateJsonFile<any[]>(
+          settings,
+          "src/data/series.json",
+          (list) => {
+            const target = list.find((s: { slug: string }) => s.slug === slug);
+            if (!target) throw new Error("仓库里没找到这个系列");
+            target.layout = "freeform";
+            target.canvasRatio = ratioSelect.value;
+            target.frames = frames.map((f) => ({
+              id: f.id,
+              x: Math.round(f.x * 10) / 10,
+              y: Math.round(f.y * 10) / 10,
+              w: Math.round(f.w * 10) / 10,
+              h: Math.round(f.h * 10) / 10,
+              z: f.z,
+            }));
+          },
+          `chore(gallery): 更新 ${slug} 的自由排版`
+        );
         statusEl.textContent = "已保存，构建完成后生效。";
       } catch (err) {
         statusEl.textContent = `保存失败：${(err as Error).message}`;

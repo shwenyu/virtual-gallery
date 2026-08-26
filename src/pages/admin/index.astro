@@ -89,7 +89,7 @@ import "../../styles/admin.css";
   import {
     type AdminSettings,
     getFile,
-    putFile,
+    updateJsonFile,
     uploadToCloudinary,
     optimizedUrl,
     slugifyId,
@@ -250,13 +250,12 @@ import "../../styles/admin.css";
 
     if (newEntries.length > 0) {
       try {
-        const { sha, content: photos } = await getFile<any[]>(settings, "src/data/photos.json");
-        photos.push(...newEntries);
-        await putFile(
+        await updateJsonFile<any[]>(
           settings,
           "src/data/photos.json",
-          photos,
-          sha,
+          (photos) => {
+            photos.push(...newEntries);
+          },
           `feat(gallery): 新增 ${newEntries.length} 张照片`
         );
         log(`已写入 photos.json：${newEntries.length} 张`, "ok");
@@ -276,24 +275,31 @@ import "../../styles/admin.css";
 
     if (targetSeriesSlug && newPhotoIds.length > 0) {
       try {
-        const { sha, content: seriesList } = await getFile<any[]>(settings, "src/data/series.json");
-        let entry = seriesList.find((s: { slug: string }) => s.slug === targetSeriesSlug);
-        if (!entry) {
-          entry = {
-            slug: targetSeriesSlug,
-            title: newSeriesTitle || targetSeriesSlug,
-            subtitle: "",
-            description: "",
-            layout: newSeriesLayout,
-            cover: newPhotoIds[0],
-            photoIds: [],
-            published: false,
-          };
-          seriesList.push(entry);
-          log(`已新建系列：${targetSeriesSlug}`, "ok");
-        }
-        entry.photoIds.push(...newPhotoIds);
-        await putFile(settings, "src/data/series.json", seriesList, sha, `feat(gallery): ${targetSeriesSlug} 新增 ${newPhotoIds.length} 张照片`);
+        await updateJsonFile<any[]>(
+          settings,
+          "src/data/series.json",
+          (seriesList) => {
+            let entry = seriesList.find((s: { slug: string }) => s.slug === targetSeriesSlug);
+            if (!entry) {
+              entry = {
+                slug: targetSeriesSlug,
+                title: newSeriesTitle || targetSeriesSlug,
+                subtitle: "",
+                description: "",
+                layout: newSeriesLayout,
+                cover: newPhotoIds[0],
+                photoIds: [],
+                published: false,
+              };
+              seriesList.push(entry);
+            }
+            // Guard against a retry re-adding ids the previous attempt already wrote.
+            for (const id of newPhotoIds) {
+              if (!entry.photoIds.includes(id)) entry.photoIds.push(id);
+            }
+          },
+          `feat(gallery): ${targetSeriesSlug} 新增 ${newPhotoIds.length} 张照片`
+        );
         log(`已更新系列 ${targetSeriesSlug} 的照片列表`, "ok");
       } catch (err) {
         log(`更新系列信息失败：${(err as Error).message}`, "error");

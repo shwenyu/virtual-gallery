@@ -71,7 +71,7 @@ import "../../../styles/admin.css";
 
 
 <script>
-  import { type AdminSettings, getFile, putFile, loadSettings } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, updateJsonFile, loadSettings } from "../../../lib/adminGithub";
   import { isUnlocked } from "../../../lib/adminAuth";
   import { extractDominantColor } from "../../../lib/extractColor";
   import { withBase } from "../../../lib/url";
@@ -305,22 +305,28 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "保存中…";
       try {
-        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-        const target = list.find((s) => s.slug === entry.slug);
-        if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
-        target.title = (card.querySelector(".f-title") as HTMLInputElement).value.trim();
-        target.subtitle = (card.querySelector(".f-subtitle") as HTMLInputElement).value.trim();
-        target.description = (card.querySelector(".f-description") as HTMLTextAreaElement).value.trim();
-        target.layout = layoutSelect.value;
-        target.flowDirection = layoutSelect.value === "flow" ? (flowDirSelect.value as "horizontal" | "vertical") : undefined;
-        target.cover = coverSelect.value || photoIds[0] || target.cover;
-        target.photoIds = photoIds;
-        target.accentColor = (card.querySelector(".f-accent") as HTMLInputElement).value;
-        target.frameStyle = frameStyleSelect.value as "square" | "rounded";
-        target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
-        target.customBackground =
-          bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
-        await putFile(currentSettings, "src/data/series.json", list, sha, `chore(gallery): 更新系列 ${entry.slug}`);
+        await updateJsonFile<SeriesEntry[]>(
+          currentSettings,
+          "src/data/series.json",
+          (list) => {
+            const target = list.find((s) => s.slug === entry.slug);
+            if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
+            target.title = (card.querySelector(".f-title") as HTMLInputElement).value.trim();
+            target.subtitle = (card.querySelector(".f-subtitle") as HTMLInputElement).value.trim();
+            target.description = (card.querySelector(".f-description") as HTMLTextAreaElement).value.trim();
+            target.layout = layoutSelect.value;
+            target.flowDirection =
+              layoutSelect.value === "flow" ? (flowDirSelect.value as "horizontal" | "vertical") : undefined;
+            target.cover = coverSelect.value || photoIds[0] || target.cover;
+            target.photoIds = photoIds;
+            target.accentColor = (card.querySelector(".f-accent") as HTMLInputElement).value;
+            target.frameStyle = frameStyleSelect.value as "square" | "rounded";
+            target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
+            target.customBackground =
+              bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
+          },
+          `chore(gallery): 更新系列 ${entry.slug}`
+        );
         statusEl.textContent = "已保存。";
         log(`已保存系列：${entry.slug}`, "ok");
       } catch (err) {
@@ -338,15 +344,14 @@ import "../../../styles/admin.css";
       btn.disabled = true;
       statusEl.textContent = nextPublished ? "发布中…" : "取消发布中…";
       try {
-        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-        const target = list.find((s) => s.slug === entry.slug);
-        if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
-        target.published = nextPublished;
-        await putFile(
+        await updateJsonFile<SeriesEntry[]>(
           currentSettings,
           "src/data/series.json",
-          list,
-          sha,
+          (list) => {
+            const target = list.find((s) => s.slug === entry.slug);
+            if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
+            target.published = nextPublished;
+          },
           `chore(gallery): ${nextPublished ? "发布" : "取消发布"} ${entry.slug}`
         );
         pill.dataset.published = String(nextPublished);
@@ -368,9 +373,12 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "删除中…";
       try {
-        const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-        const next = list.filter((s) => s.slug !== entry.slug);
-        await putFile(currentSettings, "src/data/series.json", next, sha, `chore(gallery): 删除系列 ${entry.slug}`);
+        await updateJsonFile<SeriesEntry[]>(
+          currentSettings,
+          "src/data/series.json",
+          (list) => list.filter((s) => s.slug !== entry.slug),
+          `chore(gallery): 删除系列 ${entry.slug}`
+        );
         card.remove();
         log(`已删除系列：${entry.slug}`, "ok");
       } catch (err) {
@@ -439,16 +447,18 @@ import "../../../styles/admin.css";
       log("请填写 slug 和标题。", "error");
       return;
     }
+    // New series start unpublished (shown as "curating") until you explicitly publish them.
+    const entry: SeriesEntry = { slug, title, subtitle, description, layout, cover: "", photoIds: [], published: false };
     try {
-      const { sha, content: list } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-      if (list.some((s) => s.slug === slug)) {
-        log(`已存在同名 slug 的系列：${slug}`, "error");
-        return;
-      }
-      // New series start unpublished (shown as "curating") until you explicitly publish them.
-      const entry: SeriesEntry = { slug, title, subtitle, description, layout, cover: "", photoIds: [], published: false };
-      list.push(entry);
-      await putFile(currentSettings, "src/data/series.json", list, sha, `feat(gallery): 新建系列 ${slug}`);
+      await updateJsonFile<SeriesEntry[]>(
+        currentSettings,
+        "src/data/series.json",
+        (list) => {
+          if (list.some((s) => s.slug === slug)) throw new Error(`已存在同名 slug 的系列：${slug}`);
+          list.push(entry);
+        },
+        `feat(gallery): 新建系列 ${slug}`
+      );
       log(`已创建系列：${slug}`, "ok");
       document.getElementById("series-list")!.appendChild(renderSeriesCard(entry));
       (document.getElementById("new-series-form") as HTMLFormElement).reset();

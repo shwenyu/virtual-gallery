@@ -37,7 +37,7 @@ import "../../../styles/admin.css";
 
 
 <script>
-  import { type AdminSettings, getFile, putFile, loadSettings } from "../../../lib/adminGithub";
+  import { type AdminSettings, getFile, updateJsonFile, loadSettings } from "../../../lib/adminGithub";
   import { isUnlocked } from "../../../lib/adminAuth";
 
   interface Photo {
@@ -104,16 +104,21 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "保存中…";
       try {
-        const { sha, content: list } = await getFile<Photo[]>(currentSettings, "src/data/photos.json");
-        const target = list.find((p) => p.id === photo.id);
-        if (!target) throw new Error("在仓库里没找到这张照片");
-        target.alt = (card.querySelector(".f-alt") as HTMLInputElement).value.trim();
-        target.caption = (card.querySelector(".f-caption") as HTMLInputElement).value.trim();
-        target.tags = (card.querySelector(".f-tags") as HTMLInputElement).value
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean);
-        await putFile(currentSettings, "src/data/photos.json", list, sha, `chore(gallery): 更新照片信息 ${photo.id}`);
+        await updateJsonFile<Photo[]>(
+          currentSettings,
+          "src/data/photos.json",
+          (list) => {
+            const target = list.find((p) => p.id === photo.id);
+            if (!target) throw new Error("在仓库里没找到这张照片");
+            target.alt = (card.querySelector(".f-alt") as HTMLInputElement).value.trim();
+            target.caption = (card.querySelector(".f-caption") as HTMLInputElement).value.trim();
+            target.tags = (card.querySelector(".f-tags") as HTMLInputElement).value
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean);
+          },
+          `chore(gallery): 更新照片信息 ${photo.id}`
+        );
         statusEl.textContent = "已保存。";
         log(`已保存：${photo.id}`, "ok");
       } catch (err) {
@@ -128,30 +133,25 @@ import "../../../styles/admin.css";
       const statusEl = card.querySelector(".card-status") as HTMLElement;
       statusEl.textContent = "删除中…";
       try {
-        const { sha, content: list } = await getFile<Photo[]>(currentSettings, "src/data/photos.json");
-        const next = list.filter((p) => p.id !== photo.id);
-        await putFile(currentSettings, "src/data/photos.json", next, sha, `chore(gallery): 删除照片 ${photo.id}`);
+        await updateJsonFile<Photo[]>(
+          currentSettings,
+          "src/data/photos.json",
+          (list) => list.filter((p) => p.id !== photo.id),
+          `chore(gallery): 删除照片 ${photo.id}`
+        );
 
-        const { sha: seriesSha, content: seriesList } = await getFile<SeriesEntry[]>(currentSettings, "src/data/series.json");
-        let seriesChanged = false;
-        for (const s of seriesList) {
-          if (s.photoIds.includes(photo.id)) {
-            s.photoIds = s.photoIds.filter((id) => id !== photo.id);
-            seriesChanged = true;
-          }
-          if (s.frames) {
-            const before = s.frames.length;
-            s.frames = s.frames.filter((f) => f.id !== photo.id);
-            if (s.frames.length !== before) seriesChanged = true;
-          }
-          if (s.cover === photo.id) {
-            s.cover = s.photoIds[0] ?? "";
-            seriesChanged = true;
-          }
-        }
-        if (seriesChanged) {
-          await putFile(currentSettings, "src/data/series.json", seriesList, seriesSha, `chore(gallery): 清理已删除照片 ${photo.id} 的引用`);
-        }
+        await updateJsonFile<SeriesEntry[]>(
+          currentSettings,
+          "src/data/series.json",
+          (seriesList) => {
+            for (const s of seriesList) {
+              s.photoIds = s.photoIds.filter((id) => id !== photo.id);
+              if (s.frames) s.frames = s.frames.filter((f) => f.id !== photo.id);
+              if (s.cover === photo.id) s.cover = s.photoIds[0] ?? "";
+            }
+          },
+          `chore(gallery): 清理已删除照片 ${photo.id} 的引用`
+        );
 
         card.remove();
         log(`已删除照片：${photo.id}`, "ok");

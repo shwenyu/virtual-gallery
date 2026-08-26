@@ -30,6 +30,13 @@
   box-sizing: border-box;
 }
 
+/* The `hidden` attribute only gets `display: none` from the UA stylesheet, which
+   any author `display` rule outranks. Several components set `display: flex` on
+   elements they also toggle with `hidden`, so make hidden authoritative. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   background: var(--bg);
   color-scheme: light;
