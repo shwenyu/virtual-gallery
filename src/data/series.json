@@ -1,54 +1,5 @@
 [
   {
-    "slug": "loose-notes",
-    "title": "Loose Notes",
-    "subtitle": "散记",
-    "description": "手工摆放的一组随笔式合集，用来试验自由排版。",
-    "layout": "freeform",
-    "cover": "p004",
-    "photoIds": [
-      "p004",
-      "p001",
-      "p009",
-      "p006"
-    ],
-    "canvasRatio": "3 / 2",
-    "frames": [
-      {
-        "id": "p004",
-        "x": 4,
-        "y": 6,
-        "w": 44,
-        "h": 50,
-        "z": 1
-      },
-      {
-        "id": "p001",
-        "x": 50,
-        "y": 4,
-        "w": 24,
-        "h": 34,
-        "z": 2
-      },
-      {
-        "id": "p009",
-        "x": 76,
-        "y": 4,
-        "w": 20,
-        "h": 60,
-        "z": 3
-      },
-      {
-        "id": "p006",
-        "x": 50,
-        "y": 40,
-        "w": 24,
-        "h": 24,
-        "z": 4
-      }
-    ]
-  },
-  {
     "slug": "Grassland",
     "title": "Grassland",
     "subtitle": "在草原",
