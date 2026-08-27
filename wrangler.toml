@@ -11,6 +11,21 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+# Keep the workers.dev URL as a fallback target. It is unreliable from mainland
+# China, but without it a failed custom-domain setup would leave no working URL.
+workers_dev = true
+
+# Custom domains for the Worker. Cloudflare creates and manages the DNS records
+# for these itself (already proxied), which is why the zone needs no hand-written
+# A records — the ones pointing at GitHub Pages belong to the old setup.
+[[routes]]
+pattern = "echogallery.art"
+custom_domain = true
+
+[[routes]]
+pattern = "www.echogallery.art"
+custom_domain = true
+
 # Created in the APAC region, the closest primary to the site's readers.
 # Local development uses wrangler's own SQLite file and ignores this id.
 [[d1_databases]]
