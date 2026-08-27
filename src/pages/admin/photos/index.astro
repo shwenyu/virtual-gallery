@@ -1,29 +1,25 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
-import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
-import AdminGate from "../../../components/AdminGate.astro";
 import "../../../styles/admin.css";
+
+export const prerender = false;
 ---
 
 <BaseLayout title="照片管理 · 回声画廊" description="修改每一张照片的名称与说明文字" noindex>
-  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>照片管理</h1>
     <p class="note">
-      上传时填写的是统一说明文字，方便批量上传；进来这里可以单独修改每一张照片的名称
-      （alt，用于无障碍朗读和默认标题）、说明文字（caption，画廊里显示的文字）和标签。
+      上传时填的是统一说明文字，方便批量处理；这里可以逐张修改名称（alt，用于无障碍朗读）、
+      说明文字（画廊里显示的文字）和标签。
     </p>
     <AdminNav active="photos" />
 
-    <div class="toolbar" id="load-panel">
+    <div class="toolbar">
       <input type="search" id="filter-input" placeholder="按 id / 名称 / 说明 / 标签搜索…" style="flex:1;min-width:200px;" />
-      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
       <span class="status" id="load-status">载入中…</span>
     </div>
-
-    <AdminSettingsPanel />
 
     <div id="photo-list" class="photo-grid"></div>
 
@@ -32,14 +28,9 @@ import "../../../styles/admin.css";
       <ol id="log-list"></ol>
     </div>
   </section>
-  </AdminGate>
 </BaseLayout>
 
-
 <script>
-  import { type AdminSettings, getFile, updateJsonFile, loadSettings, forgetCachedWrites } from "../../../lib/adminGithub";
-  import { isUnlocked } from "../../../lib/adminAuth";
-
   interface Photo {
     id: string;
     src: string;
@@ -51,14 +42,6 @@ import "../../../styles/admin.css";
     tags?: string[];
   }
 
-  interface SeriesEntry {
-    slug: string;
-    photoIds: string[];
-    cover: string;
-    frames?: { id: string }[];
-  }
-
-  let currentSettings: AdminSettings | null = null;
   let allPhotos: Photo[] = [];
 
   function log(message: string, state: "info" | "ok" | "error" = "info") {
@@ -72,96 +55,70 @@ import "../../../styles/admin.css";
     li.scrollIntoView({ block: "nearest" });
   }
 
-  function escapeHtml(str: string) {
-    return str.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
-  }
+  const esc = (s: string) =>
+    s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
 
-  function escapeAttr(str: string) {
-    return escapeHtml(str).replace(/"/g, "&quot;");
-  }
-
-  function renderPhotoCard(photo: Photo): HTMLElement {
+  function renderCard(photo: Photo): HTMLElement {
     const card = document.createElement("div");
     card.className = "photo-card";
     card.dataset.id = photo.id;
     card.innerHTML = `
-      <img src="${escapeAttr(photo.src)}" alt="" loading="lazy" />
+      <img src="${esc(photo.src)}" alt="" loading="lazy" />
       <div class="photo-card__fields">
-        <span class="photo-card__id">${escapeHtml(photo.id)} · ${photo.width}×${photo.height}</span>
-        <input type="text" class="f-alt" placeholder="名称（alt）" value="${escapeAttr(photo.alt ?? "")}" />
-        <input type="text" class="f-caption" placeholder="说明文字（caption）" value="${escapeAttr(photo.caption ?? "")}" />
-        <input type="text" class="f-tags" placeholder="标签，逗号分隔" value="${escapeAttr((photo.tags ?? []).join(", "))}" />
+        <span class="photo-card__id">${esc(photo.id)} · ${photo.width}×${photo.height}</span>
+        <input type="text" class="f-alt" placeholder="名称" value="${esc(photo.alt ?? "")}" />
+        <input type="text" class="f-caption" placeholder="说明文字" value="${esc(photo.caption ?? "")}" />
+        <input type="text" class="f-tags" placeholder="标签，逗号分隔" value="${esc((photo.tags ?? []).join(", "))}" />
         <div class="photo-card__actions">
           <button type="button" class="button button--small save-btn">保存</button>
-          <button type="button" class="button button--small button--danger delete-btn">删除照片</button>
+          <button type="button" class="button button--small button--danger delete-btn">删除</button>
           <span class="status card-status"></span>
         </div>
       </div>
     `;
 
-    card.querySelector(".save-btn")?.addEventListener("click", async () => {
-      if (!currentSettings) return;
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      statusEl.textContent = "保存中…";
+    const status = card.querySelector(".card-status") as HTMLElement;
+
+    card.querySelector(".save-btn")!.addEventListener("click", async () => {
+      status.textContent = "保存中…";
       try {
-        await updateJsonFile<Photo[]>(
-          currentSettings,
-          "src/data/photos.json",
-          (list) => {
-            const target = list.find((p) => p.id === photo.id);
-            if (!target) throw new Error("在仓库里没找到这张照片");
-            target.alt = (card.querySelector(".f-alt") as HTMLInputElement).value.trim();
-            target.caption = (card.querySelector(".f-caption") as HTMLInputElement).value.trim();
-            target.tags = (card.querySelector(".f-tags") as HTMLInputElement).value
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean);
-          },
-          `chore(gallery): 更新照片信息 ${photo.id}`
-        );
-        statusEl.textContent = "已保存。";
+        const res = await fetch("/api/admin/photos", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            id: photo.id,
+            alt: (card.querySelector(".f-alt") as HTMLInputElement).value,
+            caption: (card.querySelector(".f-caption") as HTMLInputElement).value,
+            tags: (card.querySelector(".f-tags") as HTMLInputElement).value,
+            capturedAt: photo.capturedAt ?? "",
+          }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(data.error ?? `失败（${res.status}）`);
+        status.textContent = "已保存。";
         log(`已保存：${photo.id}`, "ok");
       } catch (err) {
-        statusEl.textContent = `保存失败：${(err as Error).message}`;
-        log(`保存 ${photo.id} 失败：${(err as Error).message}`, "error");
+        status.textContent = `保存失败：${(err as Error).message}`;
       }
     });
 
-    card.querySelector(".delete-btn")?.addEventListener("click", async () => {
-      if (!currentSettings) return;
-      if (!confirm(`确定要删除照片 ${photo.id} 吗？会同时从所有系列里移除它（不会删除 Cloudinary 上的原图）。`)) return;
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      statusEl.textContent = "删除中…";
+    card.querySelector(".delete-btn")!.addEventListener("click", async () => {
+      if (!confirm(`确定删除照片 ${photo.id}？会同时从所有系列里移除，且原图一并删除，无法撤销。`)) return;
+      status.textContent = "删除中…";
       try {
-        const updated = await updateJsonFile<Photo[]>(
-          currentSettings,
-          "src/data/photos.json",
-          (list) => list.filter((p) => p.id !== photo.id),
-          `chore(gallery): 删除照片 ${photo.id}`
-        );
-
-        await updateJsonFile<SeriesEntry[]>(
-          currentSettings,
-          "src/data/series.json",
-          (seriesList) => {
-            for (const s of seriesList) {
-              s.photoIds = s.photoIds.filter((id) => id !== photo.id);
-              if (s.frames) s.frames = s.frames.filter((f) => f.id !== photo.id);
-              if (s.cover === photo.id) s.cover = s.photoIds[0] ?? "";
-            }
-          },
-          `chore(gallery): 清理已删除照片 ${photo.id} 的引用`
-        );
-
-        // Keep the in-memory list in step with the repo so the next delete and the
-        // search filter both work without a manual refresh.
-        allPhotos = updated;
+        const res = await fetch("/api/admin/photos", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: photo.id }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(data.error ?? `失败（${res.status}）`);
+        allPhotos = allPhotos.filter((p) => p.id !== photo.id);
         card.remove();
         document.getElementById("load-status")!.textContent = `${allPhotos.length} 张照片。`;
-        log(`已删除照片：${photo.id}`, "ok");
+        log(`已删除：${photo.id}`, "ok");
       } catch (err) {
-        statusEl.textContent = `删除失败：${(err as Error).message}`;
-        log(`删除 ${photo.id} 失败：${(err as Error).message}`, "error");
+        status.textContent = `删除失败：${(err as Error).message}`;
       }
     });
 
@@ -171,48 +128,33 @@ import "../../../styles/admin.css";
   function renderList(photos: Photo[]) {
     const container = document.getElementById("photo-list")!;
     container.innerHTML = "";
-    for (const photo of photos) {
-      container.appendChild(renderPhotoCard(photo));
-    }
+    for (const p of photos) container.appendChild(renderCard(p));
   }
 
-  async function loadAll(settings: AdminSettings) {
-    if (!settings.owner || !settings.repo || !settings.token) return;
-    currentSettings = settings;
-    const statusEl = document.getElementById("load-status")!;
-    statusEl.textContent = "载入中…";
+  async function load() {
+    const status = document.getElementById("load-status")!;
     try {
-      const { content: photos } = await getFile<Photo[]>(settings, "src/data/photos.json");
+      const res = await fetch("/api/admin/photos");
+      if (!res.ok) throw new Error(`载入失败（${res.status}）`);
+      const { photos } = (await res.json()) as { photos: Photo[] };
       allPhotos = photos;
       renderList(allPhotos);
-      statusEl.textContent = `${photos.length} 张照片。`;
+      status.textContent = `${photos.length} 张照片。`;
     } catch (err) {
-      statusEl.textContent = `载入失败：${(err as Error).message}`;
+      status.textContent = (err as Error).message;
     }
   }
 
-  document.getElementById("filter-input")?.addEventListener("input", (e) => {
+  document.getElementById("filter-input")!.addEventListener("input", (e) => {
     const q = (e.target as HTMLInputElement).value.trim().toLowerCase();
-    if (!q) {
-      renderList(allPhotos);
-      return;
-    }
-    const filtered = allPhotos.filter((p) =>
-      [p.id, p.alt, p.caption, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase().includes(q)
+    renderList(
+      q
+        ? allPhotos.filter((p) =>
+            [p.id, p.alt, p.caption, ...(p.tags ?? [])].filter(Boolean).join(" ").toLowerCase().includes(q)
+          )
+        : allPhotos
     );
-    renderList(filtered);
   });
 
-  // Read settings directly rather than waiting for an event the settings panel may
-  // have already dispatched before this script registered a listener.
-  function boot() {
-    loadAll(loadSettings());
-  }
-  if (isUnlocked()) boot();
-  else window.addEventListener("admin-unlocked", boot);
-  window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
-  document.getElementById("reload-btn")?.addEventListener("click", () => {
-    forgetCachedWrites(); // an explicit refresh should really re-read the repo
-    if (currentSettings) loadAll(currentSettings);
-  });
+  load();
 </script>

@@ -1,29 +1,25 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import AdminNav from "../../components/AdminNav.astro";
-import AdminSettingsPanel from "../../components/AdminSettingsPanel.astro";
-import AdminGate from "../../components/AdminGate.astro";
 import "../../styles/admin.css";
+
+export const prerender = false;
 ---
 
-<BaseLayout title="后台上传 · 回声画廊" description="仅站主本人使用的照片上传与策展后台" noindex>
-  <AdminGate>
+<BaseLayout title="上传照片 · 回声画廊" description="上传照片到画廊" noindex>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
-    <h1>上传与策展</h1>
+    <h1>上传照片</h1>
     <p class="note">
-      本页面只在你自己的浏览器里运行：照片直接上传到你的 Cloudinary 账号，
-      条目信息通过你的 GitHub 令牌直接提交到仓库。不会有任何密钥被打包进网站代码。
-      请不要在公共/共享电脑上使用，用完可在 GitHub 设置中随时吊销令牌。
+      照片直接存进这个网站自己的存储里，信息写入数据库——不需要任何外部账号或令牌。
+      可以分多次选择文件，每张都有预览、可单独移除。
     </p>
     <AdminNav active="upload" />
 
-    <AdminSettingsPanel />
-
-    <form class="panel upload-form" id="upload-form">
-      <h2>新增照片</h2>
+    <form class="panel" id="upload-form">
+      <h2>选择照片</h2>
       <label>
-        选择图片文件（可以分多次选择，不会清空之前已选的；每张都有预览，可单独移除）
+        图片文件（可多选，支持 JPG / PNG / WebP / AVIF）
         <input type="file" id="files" accept="image/*" multiple />
       </label>
       <ul class="staged-list" id="staged-list"></ul>
@@ -31,49 +27,25 @@ import "../../styles/admin.css";
       <div class="grid2">
         <label>
           归入系列
-          <select id="series-select">
-            <option value="">载入设置后自动读取…</option>
-          </select>
+          <select id="series-select"><option value="">（暂不加入系列）</option></select>
         </label>
         <label>
-          或新建系列 slug（留空则用上方已选）
-          <input type="text" id="new-series-slug" placeholder="例如 nightwalk" />
-        </label>
-        <label>
-          新系列标题（新建时填写）
-          <input type="text" id="new-series-title" placeholder="Nightwalk" />
-        </label>
-        <label>
-          新系列排版
-          <select id="new-series-layout">
-            <option value="grid">grid（均匀网格）</option>
-            <option value="masonry">masonry（瀑布流）</option>
-            <option value="editorial">editorial（杂志式节奏）</option>
-            <option value="freeform">freeform（自由拖拽，去"自由排版"页调整）</option>
-            <option value="flow">flow（沉浸式逐张浏览，去"系列管理"页调整方向）</option>
-          </select>
+          拍摄日期
+          <input type="date" id="captured-at" />
         </label>
       </div>
 
       <label>
-        统一说明文字（每张图可留空，留空则用文件名）
+        统一说明文字（可留空；之后可在「照片管理」里逐张修改）
         <input type="text" id="caption" placeholder="例如：静" />
       </label>
       <label>
         标签（逗号分隔）
         <input type="text" id="tags" placeholder="landscape, quiet" />
       </label>
-      <label>
-        拍摄日期
-        <input type="date" id="captured-at" />
-      </label>
 
-      <button type="submit" class="button">上传并提交到仓库</button>
-      <p class="note small">
-        提交后会：1) 把图片上传到 Cloudinary；2) 更新仓库里的
-        <code>src/data/photos.json</code>（和可选的 <code>series.json</code>）；
-        3) GitHub Actions 会自动重新构建部署，一两分钟后网站生效。
-      </p>
+      <button type="submit" class="button" id="submit-btn">开始上传</button>
+      <p class="note small">上传完成后立刻生效，不需要等待构建。</p>
     </form>
 
     <div class="panel log" id="log" hidden>
@@ -81,54 +53,22 @@ import "../../styles/admin.css";
       <ol id="log-list"></ol>
     </div>
   </section>
-  </AdminGate>
 </BaseLayout>
 
-
 <script>
-  import {
-    type AdminSettings,
-    getFile,
-    updateJsonFile,
-    uploadToCloudinary,
-    optimizedUrl,
-    slugifyId,
-    loadSettings,
-  } from "../../lib/adminGithub";
-  import { isUnlocked } from "../../lib/adminAuth";
+  const filesInput = document.getElementById("files") as HTMLInputElement;
+  const stagedList = document.getElementById("staged-list")!;
+  const seriesSelect = document.getElementById("series-select") as HTMLSelectElement;
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 
-  function readSettingsForm(): AdminSettings {
-    return {
-      cloud: (document.getElementById("cf-cloud") as HTMLInputElement).value.trim(),
-      preset: (document.getElementById("cf-preset") as HTMLInputElement).value.trim(),
-      owner: (document.getElementById("gh-owner") as HTMLInputElement).value.trim(),
-      repo: (document.getElementById("gh-repo") as HTMLInputElement).value.trim(),
-      branch: (document.getElementById("gh-branch") as HTMLInputElement).value.trim() || "main",
-      token: (document.getElementById("gh-token") as HTMLInputElement).value.trim(),
-    };
+  interface Staged {
+    file: File;
+    url: string;
+    width: number;
+    height: number;
   }
 
-  async function populateSeriesSelect(settings: AdminSettings) {
-    const select = document.getElementById("series-select") as HTMLSelectElement;
-    if (!settings.owner || !settings.repo || !settings.token) return;
-    const { content } = await getFile<Array<{ slug: string; title: string }>>(settings, "src/data/series.json");
-    select.innerHTML = '<option value="">（不加入任何系列）</option>';
-    for (const s of content) {
-      const opt = document.createElement("option");
-      opt.value = s.slug;
-      opt.textContent = `${s.title} (${s.slug})`;
-      select.appendChild(opt);
-    }
-  }
-
-  // Read settings directly rather than waiting for an event the settings panel may
-  // have already dispatched before this script registered a listener.
-  function boot() {
-    populateSeriesSelect(loadSettings()).catch(() => {});
-  }
-  if (isUnlocked()) boot();
-  else window.addEventListener("admin-unlocked", boot);
-  window.addEventListener("admin-settings-saved", (e) => populateSeriesSelect((e as CustomEvent).detail).catch(() => {}));
+  let staged: Staged[] = [];
 
   function log(message: string, state: "info" | "ok" | "error" = "info") {
     const panel = document.getElementById("log")!;
@@ -141,174 +81,117 @@ import "../../styles/admin.css";
     li.scrollIntoView({ block: "nearest" });
   }
 
-  // Staged file selection: accumulates across multiple picks (native <input>
-  // replaces its FileList every time, so we keep our own list + object-URL previews).
-  let stagedFiles: File[] = [];
-  const objectUrls = new WeakMap<File, string>();
-
-  function isSameFile(a: File, b: File) {
-    return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+  /** Reads the real pixel dimensions so the layout can reserve the right space. */
+  function measure(file: File): Promise<Staged> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => resolve({ file, url, width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error(`无法读取图片：${file.name}`));
+      };
+      img.src = url;
+    });
   }
 
   function renderStaged() {
-    const list = document.getElementById("staged-list")!;
-    list.innerHTML = "";
-    for (const file of stagedFiles) {
-      let url = objectUrls.get(file);
-      if (!url) {
-        url = URL.createObjectURL(file);
-        objectUrls.set(file, url);
-      }
+    stagedList.innerHTML = "";
+    for (const item of staged) {
       const li = document.createElement("li");
       li.innerHTML = `
-        <img src="${url}" alt="" />
-        <span class="staged-name">${file.name}</span>
-        <button type="button" class="staged-remove" aria-label="移除 ${file.name}">&times;</button>
+        <img src="${item.url}" alt="" />
+        <span class="staged-name">${item.file.name}</span>
+        <button type="button" class="staged-remove" aria-label="移除">&times;</button>
       `;
-      li.querySelector(".staged-remove")?.addEventListener("click", () => {
-        const u = objectUrls.get(file);
-        if (u) URL.revokeObjectURL(u);
-        stagedFiles = stagedFiles.filter((f) => f !== file);
+      li.querySelector(".staged-remove")!.addEventListener("click", () => {
+        URL.revokeObjectURL(item.url);
+        staged = staged.filter((s) => s !== item);
         renderStaged();
       });
-      list.appendChild(li);
+      stagedList.appendChild(li);
     }
   }
 
-  document.getElementById("files")?.addEventListener("change", (e) => {
-    const input = e.target as HTMLInputElement;
-    const picked = Array.from(input.files ?? []);
+  filesInput.addEventListener("change", async () => {
+    const picked = Array.from(filesInput.files ?? []);
+    // The native input replaces its FileList each time, so keep our own list and
+    // reset the control — picking again then adds rather than replaces.
+    filesInput.value = "";
     for (const file of picked) {
-      if (!stagedFiles.some((f) => isSameFile(f, file))) {
-        stagedFiles.push(file);
+      const dupe = staged.some(
+        (s) => s.file.name === file.name && s.file.size === file.size && s.file.lastModified === file.lastModified
+      );
+      if (dupe) continue;
+      try {
+        staged.push(await measure(file));
+      } catch (err) {
+        log((err as Error).message, "error");
       }
     }
-    input.value = ""; // reset so picking again fires "change" and doesn't replace the selection
     renderStaged();
   });
 
-  document.getElementById("upload-form")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const settings = readSettingsForm();
-    if (!settings.cloud || !settings.preset) {
-      log("请先在「连接设置」中填写 Cloudinary Cloud Name 与 Upload Preset。", "error");
-      return;
+  async function loadSeries() {
+    try {
+      const res = await fetch("/api/admin/series");
+      if (!res.ok) return;
+      const { series } = (await res.json()) as { series: Array<{ slug: string; title: string }> };
+      seriesSelect.innerHTML =
+        '<option value="">（暂不加入系列）</option>' +
+        series.map((s) => `<option value="${s.slug}">${s.title} (${s.slug})</option>`).join("");
+    } catch {
+      /* the select simply stays at its default */
     }
-    if (!settings.owner || !settings.repo || !settings.token) {
-      log("请先在「连接设置」中填写 GitHub Owner / Repo / Token。", "error");
-      return;
-    }
+  }
+  loadSeries();
 
-    const files = [...stagedFiles];
-    if (files.length === 0) {
+  document.getElementById("upload-form")!.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (staged.length === 0) {
       log("请先选择至少一张图片。", "error");
       return;
     }
 
-    const captionBase = (document.getElementById("caption") as HTMLInputElement).value.trim();
-    const tags = (document.getElementById("tags") as HTMLInputElement).value
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const caption = (document.getElementById("caption") as HTMLInputElement).value.trim();
+    const tags = (document.getElementById("tags") as HTMLInputElement).value.trim();
     const capturedAt = (document.getElementById("captured-at") as HTMLInputElement).value;
+    const seriesSlug = seriesSelect.value;
 
-    const newSeriesSlug = (document.getElementById("new-series-slug") as HTMLInputElement).value.trim();
-    const newSeriesTitle = (document.getElementById("new-series-title") as HTMLInputElement).value.trim();
-    const newSeriesLayout = (document.getElementById("new-series-layout") as HTMLSelectElement).value;
-    const existingSeriesSlug = (document.getElementById("series-select") as HTMLSelectElement).value;
-    const targetSeriesSlug = newSeriesSlug || existingSeriesSlug;
+    submitBtn.disabled = true;
+    const succeeded: Staged[] = [];
 
-    const newPhotoIds: string[] = [];
-    const newEntries: any[] = [];
-    const uploadedFiles: File[] = [];
-
-    // Upload every file to Cloudinary first, then write photos.json exactly once.
-    // A read-modify-write per file loses entries: the contents API can serve a stale
-    // copy right after a write, so consecutive writes clobber each other.
-    for (const file of files) {
+    for (const item of staged) {
       try {
-        log(`上传中：${file.name} …`);
-        const result = await uploadToCloudinary(settings, file);
-        const id = slugifyId(result.public_id);
-        newPhotoIds.push(id);
-        newEntries.push({
-          id,
-          src: optimizedUrl(result.secure_url),
-          width: result.width,
-          height: result.height,
-          alt: captionBase || file.name.replace(/\.[^.]+$/, ""),
-          caption: captionBase,
-          capturedAt: capturedAt || undefined,
-          tags,
-        });
-        uploadedFiles.push(file);
-        log(`Cloudinary 上传成功：${file.name} → ${id}`, "ok");
+        log(`上传中：${item.file.name} …`);
+        const form = new FormData();
+        form.append("file", item.file);
+        form.append("width", String(item.width));
+        form.append("height", String(item.height));
+        form.append("caption", caption);
+        form.append("tags", tags);
+        if (capturedAt) form.append("capturedAt", capturedAt);
+        if (seriesSlug) form.append("seriesSlug", seriesSlug);
+
+        const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+        const data = (await res.json()) as { error?: string; photo?: { id: string } };
+        if (!res.ok) throw new Error(data.error ?? `上传失败（${res.status}）`);
+
+        log(`已上传：${item.file.name} → ${data.photo!.id}`, "ok");
+        succeeded.push(item);
       } catch (err) {
-        log(`失败：${file.name} — ${(err as Error).message}`, "error");
+        // Keep failed files staged so they can be retried without re-picking.
+        log(`失败：${item.file.name} — ${(err as Error).message}`, "error");
       }
     }
 
-    if (newEntries.length > 0) {
-      try {
-        await updateJsonFile<any[]>(
-          settings,
-          "src/data/photos.json",
-          (photos) => {
-            photos.push(...newEntries);
-          },
-          `feat(gallery): 新增 ${newEntries.length} 张照片`
-        );
-        log(`已写入 photos.json：${newEntries.length} 张`, "ok");
+    for (const item of succeeded) URL.revokeObjectURL(item.url);
+    staged = staged.filter((s) => !succeeded.includes(s));
+    renderStaged();
+    submitBtn.disabled = false;
 
-        for (const file of uploadedFiles) {
-          const url = objectUrls.get(file);
-          if (url) URL.revokeObjectURL(url);
-        }
-        stagedFiles = stagedFiles.filter((f) => !uploadedFiles.includes(f));
-        renderStaged();
-      } catch (err) {
-        log(`写入 photos.json 失败：${(err as Error).message}`, "error");
-        log("图片已经传到 Cloudinary，但仓库没更新；请稍后重试提交。", "error");
-        return;
-      }
-    }
-
-    if (targetSeriesSlug && newPhotoIds.length > 0) {
-      try {
-        await updateJsonFile<any[]>(
-          settings,
-          "src/data/series.json",
-          (seriesList) => {
-            let entry = seriesList.find((s: { slug: string }) => s.slug === targetSeriesSlug);
-            if (!entry) {
-              entry = {
-                slug: targetSeriesSlug,
-                title: newSeriesTitle || targetSeriesSlug,
-                subtitle: "",
-                description: "",
-                layout: newSeriesLayout,
-                cover: newPhotoIds[0],
-                photoIds: [],
-                published: false,
-              };
-              seriesList.push(entry);
-            }
-            // Guard against a retry re-adding ids the previous attempt already wrote.
-            for (const id of newPhotoIds) {
-              if (!entry.photoIds.includes(id)) entry.photoIds.push(id);
-            }
-            entry.updatedAt = new Date().toISOString();
-          },
-          `feat(gallery): ${targetSeriesSlug} 新增 ${newPhotoIds.length} 张照片`
-        );
-        log(`已更新系列 ${targetSeriesSlug} 的照片列表`, "ok");
-      } catch (err) {
-        log(`更新系列信息失败：${(err as Error).message}`, "error");
-      }
-    }
-
-    if (newPhotoIds.length > 0) {
-      log("全部完成。GitHub Actions 正在重新构建，稍等片刻刷新网站即可看到新照片。", "ok");
+    if (succeeded.length > 0) {
+      log(`完成，共 ${succeeded.length} 张。刷新画廊即可看到。`, "ok");
     }
   });
 </script>

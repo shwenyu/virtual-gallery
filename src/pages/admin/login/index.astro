@@ -1,35 +1,62 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { getDb } from "../../../lib/db";
+import { isAuthenticated, needsSetup } from "../../../lib/auth";
 import "../../../styles/admin.css";
+
+export const prerender = false;
+
+const db = getDb();
+
+// Already signed in? Skip the form entirely.
+if (await isAuthenticated(Astro.request, db)) {
+  const target = Astro.url.searchParams.get("next");
+  return Astro.redirect(target && target.startsWith("/") && !target.startsWith("//") ? target : "/admin/", 302);
+}
+
+const firstRun = await needsSetup(db);
 ---
 
 <BaseLayout title="管理员登录 · 回声画廊" description="进入后台前的口令验证" noindex>
   <section class="wrap admin login-page">
     <div class="login-box">
       <p class="eyebrow">Admin</p>
-      <h1 id="login-title">管理员登录</h1>
-      <p class="note" id="login-note">请输入管理口令。</p>
+      <h1>{firstRun ? "设置管理口令" : "管理员登录"}</h1>
+      <p class="note">
+        {
+          firstRun
+            ? "这是第一次进入后台，请设置一个口令。它会加密保存在服务器上，任何浏览器、任何设备都用同一个。"
+            : "请输入管理口令。"
+        }
+      </p>
 
-      <form id="login-form">
+      <form id="login-form" data-first-run={String(firstRun)}>
         <label>
           口令
-          <input type="password" id="login-pass" autocomplete="current-password" required />
+          <input
+            type="password"
+            id="login-pass"
+            autocomplete={firstRun ? "new-password" : "current-password"}
+            minlength="8"
+            required
+          />
         </label>
-        <label id="login-confirm-wrap" hidden>
-          再输入一次
-          <input type="password" id="login-pass2" autocomplete="new-password" />
-        </label>
-        <button type="submit" class="button" id="login-submit">进入后台</button>
+        {
+          firstRun && (
+            <label>
+              再输入一次
+              <input type="password" id="login-pass2" autocomplete="new-password" minlength="8" required />
+            </label>
+          )
+        }
+        <button type="submit" class="button" id="login-submit">{firstRun ? "设置并进入" : "进入后台"}</button>
         <p class="login-status" id="login-status"></p>
       </form>
 
       <p class="login-fineprint">
-        这道口令只是把后台界面藏起来，防止别人误入——它在浏览器里校验，懂技术的人可以绕过。
-        真正的安全来自于：没有你的 GitHub 令牌，任何人都无法改动这个网站，而令牌只存在你自己的浏览器里。
+        口令经过 PBKDF2 加盐哈希后存放，登录状态是一个签名的 HttpOnly Cookie。
+        服务器不保存明文口令，前端也拿不到任何可以直接改动网站的凭据。
       </p>
-      <button type="button" class="login-reset" id="login-reset">
-        忘记口令？重置（会同时清空本机保存的连接设置）
-      </button>
     </div>
   </section>
 </BaseLayout>
@@ -72,95 +99,58 @@ import "../../../styles/admin.css";
     line-height: 1.75;
     color: var(--ink-faint);
   }
-
-  .login-reset {
-    margin-top: var(--space-2);
-    background: none;
-    border: 0;
-    padding: 0;
-    font-size: 0.72rem;
-    color: var(--ink-faint);
-    text-decoration: underline;
-    cursor: pointer;
-  }
 </style>
 
 <script>
-  import { hasPassphrase, setPassphrase, verifyPassphrase, isUnlocked, unlock, resetAdmin } from "../../../lib/adminAuth";
-  import { withBase } from "../../../lib/url";
-
   const form = document.getElementById("login-form") as HTMLFormElement;
   const passInput = document.getElementById("login-pass") as HTMLInputElement;
-  const pass2Input = document.getElementById("login-pass2") as HTMLInputElement;
-  const confirmWrap = document.getElementById("login-confirm-wrap")!;
+  const pass2Input = document.getElementById("login-pass2") as HTMLInputElement | null;
   const statusEl = document.getElementById("login-status")!;
-  const titleEl = document.getElementById("login-title")!;
-  const noteEl = document.getElementById("login-note")!;
-  const submitBtn = document.getElementById("login-submit")!;
+  const submitBtn = document.getElementById("login-submit") as HTMLButtonElement;
+  const firstRun = form.dataset.firstRun === "true";
 
-  const adminHome = withBase("/admin/");
-
-  /** Only allow redirecting back into this site's own admin area. */
+  /** Only ever redirect back into this site's own admin area. */
   function safeNext(): string {
     const raw = new URLSearchParams(location.search).get("next");
-    if (!raw) return adminHome;
-    if (!raw.startsWith("/") || raw.startsWith("//")) return adminHome;
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/admin/";
     return raw;
   }
 
-  const firstRun = !hasPassphrase();
-
-  if (firstRun) {
-    titleEl.textContent = "设置管理口令";
-    noteEl.textContent = "这是你第一次进入后台，请设置一个口令。它只保存在这台设备上。";
-    confirmWrap.hidden = false;
-    pass2Input.required = true;
-    submitBtn.textContent = "设置并进入";
-    passInput.autocomplete = "new-password";
-  } else if (isUnlocked()) {
-    location.replace(safeNext());
-  }
-
-  form?.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     statusEl.textContent = "";
-    const pass = passInput.value;
 
+    const password = passInput.value;
+    if (password.length < 8) {
+      statusEl.textContent = "口令至少 8 个字符。";
+      return;
+    }
+    if (firstRun && pass2Input && password !== pass2Input.value) {
+      statusEl.textContent = "两次输入的口令不一致。";
+      return;
+    }
+
+    submitBtn.disabled = true;
     try {
-      if (firstRun) {
-        if (pass.length < 4) {
-          statusEl.textContent = "口令太短了，至少 4 个字符。";
-          return;
-        }
-        if (pass !== pass2Input.value) {
-          statusEl.textContent = "两次输入的口令不一致。";
-          return;
-        }
-        await setPassphrase(pass);
-        unlock();
-        location.replace(safeNext());
-        return;
-      }
-
-      if (await verifyPassphrase(pass)) {
-        unlock();
-        location.replace(safeNext());
-      } else {
-        statusEl.textContent = "口令不正确。";
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        statusEl.textContent = data.error ?? `登录失败（${res.status}）`;
         passInput.value = "";
         passInput.focus();
+        return;
       }
+      location.replace(safeNext());
     } catch (err) {
-      statusEl.textContent = `出错了：${(err as Error).message}`;
+      statusEl.textContent = `网络错误：${(err as Error).message}`;
+    } finally {
+      submitBtn.disabled = false;
     }
   });
 
-  document.getElementById("login-reset")?.addEventListener("click", () => {
-    if (confirm("重置会清空本机保存的口令和 Cloudinary / GitHub 连接设置，确定吗？")) {
-      resetAdmin();
-      location.reload();
-    }
-  });
-
-  passInput?.focus();
+  passInput.focus();
 </script>

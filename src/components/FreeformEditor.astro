@@ -159,8 +159,16 @@ const { slug } = Astro.props;
 </style>
 
 <script>
-  import { type AdminSettings, updateJsonFile, loadSettings } from "../lib/adminGithub";
-  import { isUnlocked } from "../lib/adminAuth";
+  /** True when the current visitor holds a valid admin session. */
+  async function isAdmin(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/auth/status");
+      if (!res.ok) return false;
+      return ((await res.json()) as { authenticated?: boolean }).authenticated === true;
+    } catch {
+      return false;
+    }
+  }
 
   interface Frame {
     id: string;
@@ -171,12 +179,12 @@ const { slug } = Astro.props;
     z?: number;
   }
 
-  function initFreeformEditor() {
+  async function initFreeformEditor() {
     const editor = document.getElementById("ff-editor") as HTMLElement | null;
     const enterBtn = document.getElementById("ff-enter") as HTMLButtonElement | null;
     const grid = document.querySelector(".photogrid--freeform") as HTMLElement | null;
     if (!editor || !enterBtn || !grid) return;
-    if (!isUnlocked()) return; // ordinary visitors never see the editor
+    if (!(await isAdmin())) return; // ordinary visitors never see the editor
 
     const slug = editor.dataset.slug!;
     const ratioSelect = document.getElementById("ff-ratio") as HTMLSelectElement;
@@ -304,33 +312,30 @@ const { slug } = Astro.props;
     });
 
     document.getElementById("ff-save")?.addEventListener("click", async () => {
-      const settings: AdminSettings = loadSettings();
-      if (!settings.owner || !settings.repo || !settings.token) {
-        statusEl.textContent = "请先去后台「连接设置」填写 GitHub 信息。";
-        return;
-      }
       statusEl.textContent = "保存中…";
       try {
-        await updateJsonFile<any[]>(
-          settings,
-          "src/data/series.json",
-          (list) => {
-            const target = list.find((s: { slug: string }) => s.slug === slug);
-            if (!target) throw new Error("仓库里没找到这个系列");
-            target.layout = "freeform";
-            target.canvasRatio = ratioSelect.value;
-            target.frames = frames.map((f) => ({
+        const round = (n: number) => Math.round(n * 10) / 10;
+        const res = await fetch("/api/admin/series", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            slug,
+            layout: "freeform",
+            canvasRatio: ratioSelect.value,
+            photoIds: frames.map((f) => f.id),
+            frames: frames.map((f) => ({
               id: f.id,
-              x: Math.round(f.x * 10) / 10,
-              y: Math.round(f.y * 10) / 10,
-              w: Math.round(f.w * 10) / 10,
-              h: Math.round(f.h * 10) / 10,
+              x: round(f.x),
+              y: round(f.y),
+              w: round(f.w),
+              h: round(f.h),
               z: f.z,
-            }));
-          },
-          `chore(gallery): 更新 ${slug} 的自由排版`
-        );
-        statusEl.textContent = "已保存，构建完成后生效。";
+            })),
+          }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(data.error ?? `保存失败（${res.status}）`);
+        statusEl.textContent = "已保存，刷新即可看到。";
       } catch (err) {
         statusEl.textContent = `保存失败：${(err as Error).message}`;
       }

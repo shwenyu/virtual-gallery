@@ -1,61 +1,40 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
-import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
-import AdminGate from "../../../components/AdminGate.astro";
 import "../../../styles/admin.css";
+
+export const prerender = false;
 ---
 
 <BaseLayout title="自由排版 · 回声画廊" description="直接在系列页面上拖拽编排照片" noindex>
-  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>自由排版</h1>
     <p class="note">
       采用 <code>freeform</code> 排版的系列，可以直接在它自己的画廊页面上拖动照片、
-      拉右下角改大小，改完就地保存——所见即所得。下面列出了所有 freeform 系列。
+      拉右下角改大小，改完就地保存——所见即所得。
     </p>
     <AdminNav active="layout" />
 
-    <div class="toolbar">
-      <span class="status" id="load-status">载入中…</span>
-      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
-    </div>
-
+    <div class="toolbar"><span class="status" id="load-status">载入中…</span></div>
     <div id="freeform-list"></div>
-
-    <AdminSettingsPanel />
   </section>
-  </AdminGate>
 </BaseLayout>
 
 <script>
-  import { type AdminSettings, getFile, loadSettings, forgetCachedWrites } from "../../../lib/adminGithub";
-  import { isUnlocked } from "../../../lib/adminAuth";
-  import { withBase } from "../../../lib/url";
+  interface Series { slug: string; title: string; layout: string; photoIds: string[] }
 
-  interface SeriesEntry {
-    slug: string;
-    title: string;
-    subtitle?: string;
-    layout: string;
-    photoIds: string[];
-  }
-
-  async function loadAll(settings: AdminSettings) {
-    const statusEl = document.getElementById("load-status")!;
+  async function load() {
+    const status = document.getElementById("load-status")!;
     const container = document.getElementById("freeform-list")!;
-    if (!settings.owner || !settings.repo || !settings.token) {
-      statusEl.textContent = "请先在下方「连接设置」里填写 GitHub 信息。";
-      return;
-    }
-    statusEl.textContent = "载入中…";
     try {
-      const { content: list } = await getFile<SeriesEntry[]>(settings, "src/data/series.json");
-      const freeform = list.filter((s) => s.layout === "freeform");
+      const res = await fetch("/api/admin/series");
+      if (!res.ok) throw new Error(`载入失败（${res.status}）`);
+      const { series } = (await res.json()) as { series: Series[] };
+      const freeform = series.filter((s) => s.layout === "freeform");
       container.innerHTML = "";
       if (freeform.length === 0) {
-        statusEl.textContent = "还没有 freeform 系列。去「系列管理」把某个系列的排版改成 freeform 即可。";
+        status.textContent = "还没有 freeform 系列。去「系列管理」把某个系列的排版改成 freeform 即可。";
         return;
       }
       for (const s of freeform) {
@@ -67,25 +46,16 @@ import "../../../styles/admin.css";
             <span class="series-card__slug">${s.photoIds.length} 张</span>
           </div>
           <div class="series-card__actions" style="border-top:0;padding-top:0;margin-top:0;">
-            <a class="button" href="${withBase(`/gallery/${s.slug}/?edit=1`)}">打开并编辑排版</a>
+            <a class="button" href="/gallery/${s.slug}/?edit=1">打开并编辑排版</a>
           </div>
         `;
         container.appendChild(card);
       }
-      statusEl.textContent = `${freeform.length} 个 freeform 系列。`;
+      status.textContent = `${freeform.length} 个 freeform 系列。`;
     } catch (err) {
-      statusEl.textContent = `载入失败：${(err as Error).message}`;
+      status.textContent = (err as Error).message;
     }
   }
 
-  function boot() {
-    loadAll(loadSettings());
-  }
-  if (isUnlocked()) boot();
-  else window.addEventListener("admin-unlocked", boot);
-  window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
-  document.getElementById("reload-btn")?.addEventListener("click", () => {
-    forgetCachedWrites(); // an explicit refresh should really re-read the repo
-    boot();
-  });
+  load();
 </script>

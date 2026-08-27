@@ -1,49 +1,32 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import AdminNav from "../../../components/AdminNav.astro";
-import AdminSettingsPanel from "../../../components/AdminSettingsPanel.astro";
-import AdminGate from "../../../components/AdminGate.astro";
 import "../../../styles/admin.css";
+
+export const prerender = false;
 ---
 
 <BaseLayout title="系列管理 · 回声画廊" description="管理每个系列的名称、简介与照片顺序" noindex>
-  <AdminGate>
   <section class="wrap admin">
     <p class="eyebrow">Admin</p>
     <h1>系列管理</h1>
-    <p class="note">
-      在这里编辑每个系列的标题、简介、排版风格，调整照片顺序，或新建 / 删除系列。
-      保存时只会更新对应的那一个系列条目。
-    </p>
+    <p class="note">编辑每个系列的标题、简介、排版风格、主题色，调整照片顺序，或新建 / 删除系列。</p>
     <AdminNav active="series" />
 
-    <div class="toolbar" id="load-panel">
+    <div class="toolbar">
       <span class="status" id="load-status">载入中…</span>
-      <button type="button" class="button button--secondary button--small" id="reload-btn">刷新</button>
     </div>
-
-    <AdminSettingsPanel />
 
     <div id="series-list"></div>
 
-    <details class="panel" id="new-series-panel">
+    <details class="panel">
       <summary>新建系列</summary>
       <form id="new-series-form">
         <div class="grid2">
-          <label>
-            Slug（网址用，英文/数字/短横线）
-            <input type="text" id="ns-slug" placeholder="nightwalk" required />
-          </label>
-          <label>
-            标题
-            <input type="text" id="ns-title" placeholder="Nightwalk" required />
-          </label>
-          <label>
-            副标题
-            <input type="text" id="ns-subtitle" placeholder="夜行" />
-          </label>
-          <label>
-            排版
+          <label>Slug（网址用）<input type="text" id="ns-slug" placeholder="nightwalk" required /></label>
+          <label>标题<input type="text" id="ns-title" placeholder="Nightwalk" required /></label>
+          <label>副标题<input type="text" id="ns-subtitle" placeholder="夜行" /></label>
+          <label>排版
             <select id="ns-layout">
               <option value="grid">grid</option>
               <option value="masonry">masonry</option>
@@ -53,10 +36,7 @@ import "../../../styles/admin.css";
             </select>
           </label>
         </div>
-        <label>
-          简介
-          <textarea id="ns-description" rows="2" placeholder="一句话描述这个系列"></textarea>
-        </label>
+        <label>简介<textarea id="ns-description" rows="2"></textarea></label>
         <button type="submit" class="button">创建系列</button>
       </form>
     </details>
@@ -66,42 +46,17 @@ import "../../../styles/admin.css";
       <ol id="log-list"></ol>
     </div>
   </section>
-  </AdminGate>
 </BaseLayout>
 
-
 <script>
-  import { type AdminSettings, getFile, updateJsonFile, loadSettings, forgetCachedWrites } from "../../../lib/adminGithub";
-  import { isUnlocked } from "../../../lib/adminAuth";
-  import { extractDominantColor } from "../../../lib/extractColor";
-  import { withBase } from "../../../lib/url";
-
-  interface Photo {
-    id: string;
-    src: string;
-    alt: string;
+  interface Photo { id: string; src: string; alt: string }
+  interface Series {
+    slug: string; title: string; subtitle?: string; description?: string;
+    layout: string; cover: string; photoIds: string[]; published?: boolean;
+    flowDirection?: string; accentColor?: string; backgroundMode?: string;
+    customBackground?: string; frameStyle?: string;
   }
 
-  interface SeriesEntry {
-    slug: string;
-    title: string;
-    subtitle?: string;
-    description?: string;
-    layout: string;
-    cover: string;
-    photoIds: string[];
-    frames?: unknown[];
-    canvasRatio?: string;
-    published?: boolean;
-    flowDirection?: string;
-    accentColor?: string;
-    backgroundMode?: string;
-    customBackground?: string;
-    frameStyle?: string;
-    updatedAt?: string;
-  }
-
-  let currentSettings: AdminSettings | null = null;
   let allPhotos: Photo[] = [];
 
   function log(message: string, state: "info" | "ok" | "error" = "info") {
@@ -115,26 +70,34 @@ import "../../../styles/admin.css";
     li.scrollIntoView({ block: "nearest" });
   }
 
-  function photoById(id: string) {
-    return allPhotos.find((p) => p.id === id);
+  const esc = (s: string) =>
+    s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+
+  async function api(method: string, body: unknown) {
+    const res = await fetch("/api/admin/series", {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) throw new Error(data.error ?? `失败（${res.status}）`);
+    return data;
   }
 
-  function renderSeriesCard(entry: SeriesEntry): HTMLElement {
+  function renderCard(entry: Series): HTMLElement {
+    const published = entry.published !== false;
     const card = document.createElement("div");
     card.className = "series-card";
     card.dataset.slug = entry.slug;
-
-    const published = entry.published !== false;
-
     card.innerHTML = `
       <div class="series-card__header">
-        <h2>${entry.title || entry.slug}</h2>
+        <h2>${esc(entry.title || entry.slug)}</h2>
         <span class="publish-pill" data-published="${published}">${published ? "已发布" : "策展中（未发布）"}</span>
-        <span class="series-card__slug">/gallery/${entry.slug}/</span>
+        <span class="series-card__slug">/gallery/${esc(entry.slug)}/</span>
       </div>
       <div class="grid2">
-        <label>标题<input type="text" class="f-title" value="${escapeAttr(entry.title ?? "")}" /></label>
-        <label>副标题<input type="text" class="f-subtitle" value="${escapeAttr(entry.subtitle ?? "")}" /></label>
+        <label>标题<input type="text" class="f-title" value="${esc(entry.title ?? "")}" /></label>
+        <label>副标题<input type="text" class="f-subtitle" value="${esc(entry.subtitle ?? "")}" /></label>
         <label>排版
           <select class="f-layout">
             <option value="grid">grid（均匀网格）</option>
@@ -144,347 +107,214 @@ import "../../../styles/admin.css";
             <option value="flow">flow（沉浸式逐张浏览）</option>
           </select>
         </label>
-        <label class="f-flow-direction-wrap" hidden>flow 方向
-          <select class="f-flow-direction">
-            <option value="horizontal">横向（左右翻页）</option>
-            <option value="vertical">纵向（上下翻页）</option>
+        <label class="f-flow-wrap" hidden>flow 方向
+          <select class="f-flow">
+            <option value="horizontal">横向</option>
+            <option value="vertical">纵向</option>
           </select>
         </label>
-        <label>封面
-          <select class="f-cover"></select>
-        </label>
+        <label>封面<select class="f-cover"></select></label>
       </div>
-      <label>简介<textarea class="f-description" rows="2">${escapeHtml(entry.description ?? "")}</textarea></label>
+      <label>简介<textarea class="f-description" rows="2">${esc(entry.description ?? "")}</textarea></label>
 
       <p class="section-label">主题色彩</p>
       <div class="grid2">
-        <label>核心色彩
-          <span class="color-row">
-            <input type="color" class="f-accent" value="${entry.accentColor ?? "#a4744f"}" />
-            <button type="button" class="button button--secondary button--small extract-color-btn">从封面提取</button>
-          </span>
-        </label>
+        <label>核心色彩<input type="color" class="f-accent" value="${entry.accentColor ?? "#a4744f"}" /></label>
         <label>页面背景
-          <select class="f-bg-mode">
+          <select class="f-bg">
             <option value="site">跟随网站默认</option>
             <option value="accent">用核心色彩淡淡渲染</option>
             <option value="custom">自定义颜色</option>
           </select>
         </label>
-        <label class="f-custom-bg-wrap" hidden>自定义背景色
-          <input type="color" class="f-custom-bg" value="${entry.customBackground ?? "#f2f0eb"}" />
+        <label class="f-custombg-wrap" hidden>自定义背景色
+          <input type="color" class="f-custombg" value="${entry.customBackground ?? "#f2f0eb"}" />
         </label>
         <label>照片边角
-          <select class="f-frame-style">
-            <option value="square">直角</option>
-            <option value="rounded">圆角</option>
-          </select>
+          <select class="f-frame"><option value="square">直角</option><option value="rounded">圆角</option></select>
         </label>
       </div>
+
       <p class="section-label">照片顺序</p>
       <ul class="photo-list"></ul>
       <div class="add-photo-row">
-        <select class="add-photo-select"></select>
-        <button type="button" class="button button--secondary add-photo-btn">加入</button>
+        <select class="add-select"></select>
+        <button type="button" class="button button--secondary add-btn">加入</button>
       </div>
+
       <div class="series-card__actions">
-        <button type="button" class="button save-btn">保存这个系列</button>
-        <button type="button" class="button button--secondary publish-toggle-btn">${published ? "取消发布" : "发布"}</button>
-        <a class="button button--secondary" href="${withBase(`/gallery/${entry.slug}/`)}">查看页面</a>
+        <button type="button" class="button save-btn">保存</button>
+        <button type="button" class="button button--secondary publish-btn">${published ? "取消发布" : "发布"}</button>
+        <a class="button button--secondary" href="/gallery/${esc(entry.slug)}/">查看页面</a>
         <button type="button" class="button button--danger delete-btn">删除系列</button>
         <span class="status card-status"></span>
       </div>
     `;
 
-    const layoutSelect = card.querySelector(".f-layout") as HTMLSelectElement;
-    const flowDirWrap = card.querySelector(".f-flow-direction-wrap") as HTMLElement;
-    const flowDirSelect = card.querySelector(".f-flow-direction") as HTMLSelectElement;
-    layoutSelect.value = entry.layout;
-    flowDirSelect.value = entry.flowDirection ?? "horizontal";
-    flowDirWrap.hidden = entry.layout !== "flow";
-    layoutSelect.addEventListener("change", () => {
-      flowDirWrap.hidden = layoutSelect.value !== "flow";
-    });
+    const $ = <T extends Element>(sel: string) => card.querySelector(sel) as T;
+    const layoutSel = $<HTMLSelectElement>(".f-layout");
+    const flowWrap = $<HTMLElement>(".f-flow-wrap");
+    const flowSel = $<HTMLSelectElement>(".f-flow");
+    const bgSel = $<HTMLSelectElement>(".f-bg");
+    const customBgWrap = $<HTMLElement>(".f-custombg-wrap");
+    const frameSel = $<HTMLSelectElement>(".f-frame");
+    const coverSel = $<HTMLSelectElement>(".f-cover");
+    const addSel = $<HTMLSelectElement>(".add-select");
+    const listEl = $<HTMLUListElement>(".photo-list");
+    const status = $<HTMLElement>(".card-status");
 
-    const frameStyleSelect = card.querySelector(".f-frame-style") as HTMLSelectElement;
-    frameStyleSelect.value = entry.frameStyle ?? "square";
+    layoutSel.value = entry.layout;
+    flowSel.value = entry.flowDirection ?? "horizontal";
+    flowWrap.hidden = entry.layout !== "flow";
+    layoutSel.addEventListener("change", () => (flowWrap.hidden = layoutSel.value !== "flow"));
 
-    const bgModeSelect = card.querySelector(".f-bg-mode") as HTMLSelectElement;
-    const customBgWrap = card.querySelector(".f-custom-bg-wrap") as HTMLElement;
-    bgModeSelect.value = entry.backgroundMode ?? "site";
-    customBgWrap.hidden = bgModeSelect.value !== "custom";
-    bgModeSelect.addEventListener("change", () => {
-      customBgWrap.hidden = bgModeSelect.value !== "custom";
-    });
-
-    card.querySelector(".extract-color-btn")?.addEventListener("click", async () => {
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      const cover = photoById(coverSelect.value || entry.cover);
-      if (!cover) {
-        statusEl.textContent = "请先选一个封面照片再提取。";
-        return;
-      }
-      statusEl.textContent = "提取中…";
-      try {
-        const color = await extractDominantColor(cover.src);
-        (card.querySelector(".f-accent") as HTMLInputElement).value = color;
-        statusEl.textContent = `已提取：${color}`;
-      } catch (err) {
-        statusEl.textContent = `提取失败：${(err as Error).message}`;
-      }
-    });
-
-    const photoListEl = card.querySelector(".photo-list") as HTMLUListElement;
-    const coverSelect = card.querySelector(".f-cover") as HTMLSelectElement;
-    const addSelect = card.querySelector(".add-photo-select") as HTMLSelectElement;
+    bgSel.value = entry.backgroundMode ?? "site";
+    customBgWrap.hidden = bgSel.value !== "custom";
+    bgSel.addEventListener("change", () => (customBgWrap.hidden = bgSel.value !== "custom"));
+    frameSel.value = entry.frameStyle ?? "square";
 
     let photoIds = [...entry.photoIds];
 
-    function refreshCoverOptions() {
-      coverSelect.innerHTML = photoIds
-        .map((id) => `<option value="${escapeAttr(id)}">${escapeAttr(id)}</option>`)
-        .join("");
-      coverSelect.value = entry.cover;
-    }
-
-    function refreshAddOptions() {
+    function refreshSelectors() {
+      coverSel.innerHTML = photoIds.map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join("");
+      coverSel.value = entry.cover;
       const remaining = allPhotos.filter((p) => !photoIds.includes(p.id));
-      addSelect.innerHTML = remaining
-        .map((p) => `<option value="${escapeAttr(p.id)}">${escapeAttr(p.id)} — ${escapeAttr(p.alt)}</option>`)
+      addSel.innerHTML = remaining
+        .map((p) => `<option value="${esc(p.id)}">${esc(p.alt || p.id)}</option>`)
         .join("");
     }
 
-    function renderPhotoList() {
-      photoListEl.innerHTML = "";
-      photoIds.forEach((id, index) => {
-        const photo = photoById(id);
+    function renderPhotos() {
+      listEl.innerHTML = "";
+      photoIds.forEach((id, i) => {
+        const photo = allPhotos.find((p) => p.id === id);
         const li = document.createElement("li");
         li.innerHTML = `
-          ${photo ? `<img src="${escapeAttr(photo.src)}" alt="" />` : ""}
-          <span class="photo-id">${escapeHtml(id)}${photo ? "" : "（未找到该照片）"}</span>
-          <button type="button" data-action="up" ${index === 0 ? "disabled" : ""}>↑</button>
-          <button type="button" data-action="down" ${index === photoIds.length - 1 ? "disabled" : ""}>↓</button>
-          <button type="button" data-action="remove">移除</button>
+          ${photo ? `<img src="${esc(photo.src)}" alt="" />` : ""}
+          <span class="photo-id">${esc(photo?.alt || id)}</span>
+          <button type="button" data-a="up" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" data-a="down" ${i === photoIds.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" data-a="rm">移除</button>
         `;
-        li.querySelector('[data-action="up"]')?.addEventListener("click", () => {
-          if (index > 0) {
-            [photoIds[index - 1], photoIds[index]] = [photoIds[index], photoIds[index - 1]];
-            renderPhotoList();
-          }
+        li.querySelector('[data-a="up"]')!.addEventListener("click", () => {
+          [photoIds[i - 1], photoIds[i]] = [photoIds[i], photoIds[i - 1]];
+          renderPhotos();
         });
-        li.querySelector('[data-action="down"]')?.addEventListener("click", () => {
-          if (index < photoIds.length - 1) {
-            [photoIds[index + 1], photoIds[index]] = [photoIds[index], photoIds[index + 1]];
-            renderPhotoList();
-          }
+        li.querySelector('[data-a="down"]')!.addEventListener("click", () => {
+          [photoIds[i + 1], photoIds[i]] = [photoIds[i], photoIds[i + 1]];
+          renderPhotos();
         });
-        li.querySelector('[data-action="remove"]')?.addEventListener("click", () => {
-          photoIds.splice(index, 1);
-          renderPhotoList();
-          refreshCoverOptions();
-          refreshAddOptions();
+        li.querySelector('[data-a="rm"]')!.addEventListener("click", () => {
+          photoIds.splice(i, 1);
+          renderPhotos();
         });
-        photoListEl.appendChild(li);
+        listEl.appendChild(li);
       });
-      refreshCoverOptions();
+      refreshSelectors();
     }
 
-    card.querySelector(".add-photo-btn")?.addEventListener("click", () => {
-      const id = addSelect.value;
-      if (id && !photoIds.includes(id)) {
-        photoIds.push(id);
-        renderPhotoList();
-        refreshAddOptions();
+    $<HTMLButtonElement>(".add-btn").addEventListener("click", () => {
+      if (addSel.value && !photoIds.includes(addSel.value)) {
+        photoIds.push(addSel.value);
+        renderPhotos();
       }
     });
 
-    renderPhotoList();
-    refreshAddOptions();
+    renderPhotos();
 
-    card.querySelector(".save-btn")?.addEventListener("click", async () => {
-      if (!currentSettings) return;
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      statusEl.textContent = "保存中…";
+    $<HTMLButtonElement>(".save-btn").addEventListener("click", async () => {
+      status.textContent = "保存中…";
       try {
-        await updateJsonFile<SeriesEntry[]>(
-          currentSettings,
-          "src/data/series.json",
-          (list) => {
-            const target = list.find((s) => s.slug === entry.slug);
-            if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
-            target.title = (card.querySelector(".f-title") as HTMLInputElement).value.trim();
-            target.subtitle = (card.querySelector(".f-subtitle") as HTMLInputElement).value.trim();
-            target.description = (card.querySelector(".f-description") as HTMLTextAreaElement).value.trim();
-            target.layout = layoutSelect.value;
-            target.flowDirection =
-              layoutSelect.value === "flow" ? (flowDirSelect.value as "horizontal" | "vertical") : undefined;
-            target.cover = coverSelect.value || photoIds[0] || target.cover;
-            target.photoIds = photoIds;
-            target.accentColor = (card.querySelector(".f-accent") as HTMLInputElement).value;
-            target.frameStyle = frameStyleSelect.value as "square" | "rounded";
-            target.backgroundMode = bgModeSelect.value as "site" | "accent" | "custom";
-            target.customBackground =
-              bgModeSelect.value === "custom" ? (card.querySelector(".f-custom-bg") as HTMLInputElement).value : undefined;
-            target.updatedAt = new Date().toISOString();
-          },
-          `chore(gallery): 更新系列 ${entry.slug}`
-        );
-        statusEl.textContent = "已保存。";
+        await api("PATCH", {
+          slug: entry.slug,
+          title: $<HTMLInputElement>(".f-title").value,
+          subtitle: $<HTMLInputElement>(".f-subtitle").value,
+          description: $<HTMLTextAreaElement>(".f-description").value,
+          layout: layoutSel.value,
+          flowDirection: layoutSel.value === "flow" ? flowSel.value : null,
+          cover: coverSel.value || photoIds[0] || "",
+          accentColor: $<HTMLInputElement>(".f-accent").value,
+          backgroundMode: bgSel.value,
+          customBackground: bgSel.value === "custom" ? $<HTMLInputElement>(".f-custombg").value : null,
+          frameStyle: frameSel.value,
+          photoIds,
+        });
+        status.textContent = "已保存。";
         log(`已保存系列：${entry.slug}`, "ok");
       } catch (err) {
-        statusEl.textContent = `保存失败：${(err as Error).message}`;
-        log(`保存系列 ${entry.slug} 失败：${(err as Error).message}`, "error");
+        status.textContent = `保存失败：${(err as Error).message}`;
       }
     });
 
-    card.querySelector(".publish-toggle-btn")?.addEventListener("click", async (ev) => {
-      if (!currentSettings) return;
+    $<HTMLButtonElement>(".publish-btn").addEventListener("click", async (ev) => {
       const btn = ev.currentTarget as HTMLButtonElement;
-      const pill = card.querySelector(".publish-pill") as HTMLElement;
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      const nextPublished = pill.dataset.published !== "true";
+      const pill = $<HTMLElement>(".publish-pill");
+      const next = pill.dataset.published !== "true";
       btn.disabled = true;
-      statusEl.textContent = nextPublished ? "发布中…" : "取消发布中…";
+      status.textContent = next ? "发布中…" : "取消发布中…";
       try {
-        await updateJsonFile<SeriesEntry[]>(
-          currentSettings,
-          "src/data/series.json",
-          (list) => {
-            const target = list.find((s) => s.slug === entry.slug);
-            if (!target) throw new Error("在仓库里没找到这个系列，可能已被别处修改删除");
-            target.published = nextPublished;
-            target.updatedAt = new Date().toISOString();
-          },
-          `chore(gallery): ${nextPublished ? "发布" : "取消发布"} ${entry.slug}`
-        );
-        pill.dataset.published = String(nextPublished);
-        pill.textContent = nextPublished ? "已发布" : "策展中（未发布）";
-        btn.textContent = nextPublished ? "取消发布" : "发布";
-        statusEl.textContent = "已更新。";
-        log(`${entry.slug} 现在是：${nextPublished ? "已发布" : "策展中"}`, "ok");
+        await api("PATCH", { slug: entry.slug, published: next });
+        pill.dataset.published = String(next);
+        pill.textContent = next ? "已发布" : "策展中（未发布）";
+        btn.textContent = next ? "取消发布" : "发布";
+        status.textContent = "已更新。";
+        log(`${entry.slug} 现在是：${next ? "已发布" : "策展中"}`, "ok");
       } catch (err) {
-        statusEl.textContent = `操作失败：${(err as Error).message}`;
-        log(`切换发布状态失败：${(err as Error).message}`, "error");
+        status.textContent = `操作失败：${(err as Error).message}`;
       } finally {
         btn.disabled = false;
       }
     });
 
-    card.querySelector(".delete-btn")?.addEventListener("click", async () => {
-      if (!currentSettings) return;
-      if (!confirm(`确定要删除系列「${entry.title || entry.slug}」吗？这不会删除照片本身，只是移除这个系列分组。`)) return;
-      const statusEl = card.querySelector(".card-status") as HTMLElement;
-      statusEl.textContent = "删除中…";
+    $<HTMLButtonElement>(".delete-btn").addEventListener("click", async () => {
+      if (!confirm(`确定删除系列「${entry.title || entry.slug}」？照片本身不会被删除。`)) return;
+      status.textContent = "删除中…";
       try {
-        const updated = await updateJsonFile<SeriesEntry[]>(
-          currentSettings,
-          "src/data/series.json",
-          (list) => list.filter((s) => s.slug !== entry.slug),
-          `chore(gallery): 删除系列 ${entry.slug}`
-        );
-        // Repaint from what was actually written, so the list stays correct for
-        // the next delete without anyone having to hit refresh.
-        renderList(updated);
+        await api("DELETE", { slug: entry.slug });
         log(`已删除系列：${entry.slug}`, "ok");
+        await load();
       } catch (err) {
-        statusEl.textContent = `删除失败：${(err as Error).message}`;
-        log(`删除系列 ${entry.slug} 失败：${(err as Error).message}`, "error");
+        status.textContent = `删除失败：${(err as Error).message}`;
       }
     });
 
     return card;
   }
 
-  function escapeHtml(str: string) {
-    return str.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
-  }
-
-  function escapeAttr(str: string) {
-    return escapeHtml(str).replace(/"/g, "&quot;");
-  }
-
-  /** Repaint the whole list from a known-current list — no network round trip. */
-  function renderList(seriesList: SeriesEntry[]) {
-    const container = document.getElementById("series-list")!;
-    container.innerHTML = "";
-    for (const entry of seriesList) {
-      container.appendChild(renderSeriesCard(entry));
-    }
-    document.getElementById("load-status")!.textContent = `${seriesList.length} 个系列。`;
-  }
-
-  async function loadAll(settings: AdminSettings) {
-    if (!settings.owner || !settings.repo || !settings.token) return;
-    currentSettings = settings;
-    const statusEl = document.getElementById("load-status")!;
-    statusEl.textContent = "载入中…";
+  async function load() {
+    const status = document.getElementById("load-status")!;
     try {
-      const [{ content: photos }, { content: seriesList }] = await Promise.all([
-        getFile<Photo[]>(settings, "src/data/photos.json"),
-        getFile<SeriesEntry[]>(settings, "src/data/series.json"),
-      ]);
-      allPhotos = photos;
-      renderList(seriesList);
+      const [pRes, sRes] = await Promise.all([fetch("/api/admin/photos"), fetch("/api/admin/series")]);
+      if (!pRes.ok || !sRes.ok) throw new Error("载入失败");
+      allPhotos = ((await pRes.json()) as { photos: Photo[] }).photos;
+      const { series } = (await sRes.json()) as { series: Series[] };
+      const container = document.getElementById("series-list")!;
+      container.innerHTML = "";
+      for (const s of series) container.appendChild(renderCard(s));
+      status.textContent = `${series.length} 个系列 · ${allPhotos.length} 张照片。`;
     } catch (err) {
-      statusEl.textContent = `载入失败：${(err as Error).message}`;
+      status.textContent = (err as Error).message;
     }
   }
 
-  // Read settings directly rather than waiting for an event the settings panel may
-  // have already dispatched before this script registered a listener.
-  function boot() {
-    loadAll(loadSettings());
-  }
-  if (isUnlocked()) boot();
-  else window.addEventListener("admin-unlocked", boot);
-  window.addEventListener("admin-settings-saved", (e) => loadAll((e as CustomEvent).detail));
-  document.getElementById("reload-btn")?.addEventListener("click", () => {
-    forgetCachedWrites(); // an explicit refresh should really re-read the repo
-    if (currentSettings) loadAll(currentSettings);
-  });
-
-  document.getElementById("new-series-form")?.addEventListener("submit", async (e) => {
+  document.getElementById("new-series-form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!currentSettings) {
-      log("请先在「连接设置」中填写并保存 GitHub 信息。", "error");
-      return;
-    }
-    const slug = (document.getElementById("ns-slug") as HTMLInputElement).value.trim();
-    const title = (document.getElementById("ns-title") as HTMLInputElement).value.trim();
-    const subtitle = (document.getElementById("ns-subtitle") as HTMLInputElement).value.trim();
-    const description = (document.getElementById("ns-description") as HTMLTextAreaElement).value.trim();
-    const layout = (document.getElementById("ns-layout") as HTMLSelectElement).value;
-    if (!slug || !title) {
-      log("请填写 slug 和标题。", "error");
-      return;
-    }
-    // New series start unpublished (shown as "curating") until you explicitly publish them.
-    const entry: SeriesEntry = {
-      slug,
-      title,
-      subtitle,
-      description,
-      layout,
-      cover: "",
-      photoIds: [],
-      published: false,
-      updatedAt: new Date().toISOString(),
-    };
+    const form = e.currentTarget as HTMLFormElement;
     try {
-      const updated = await updateJsonFile<SeriesEntry[]>(
-        currentSettings,
-        "src/data/series.json",
-        (list) => {
-          if (list.some((s) => s.slug === slug)) throw new Error(`已存在同名 slug 的系列：${slug}`);
-          list.push(entry);
-        },
-        `feat(gallery): 新建系列 ${slug}`
-      );
-      log(`已创建系列：${slug}`, "ok");
-      renderList(updated);
-      (document.getElementById("new-series-form") as HTMLFormElement).reset();
+      await api("POST", {
+        slug: (document.getElementById("ns-slug") as HTMLInputElement).value,
+        title: (document.getElementById("ns-title") as HTMLInputElement).value,
+        subtitle: (document.getElementById("ns-subtitle") as HTMLInputElement).value,
+        description: (document.getElementById("ns-description") as HTMLTextAreaElement).value,
+        layout: (document.getElementById("ns-layout") as HTMLSelectElement).value,
+      });
+      log("已创建系列。", "ok");
+      form.reset();
+      await load();
     } catch (err) {
-      log(`创建系列失败：${(err as Error).message}`, "error");
+      log(`创建失败：${(err as Error).message}`, "error");
     }
   });
+
+  load();
 </script>

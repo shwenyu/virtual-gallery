@@ -78,11 +78,13 @@ const items = [
 </style>
 
 <script>
-  import { lock } from "../lib/adminAuth";
-  import { withBase } from "../lib/url";
-
-  document.getElementById("admin-logout")?.addEventListener("click", () => {
-    lock();
-    location.href = withBase("/admin/login/");
+  // Logging out clears the server-issued session cookie, so it takes effect
+  // everywhere rather than only in this browser's local storage.
+  document.getElementById("admin-logout")?.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      location.href = "/admin/login/";
+    }
   });
 </script>
