@@ -1,0 +1,17 @@
+name = "virtual-gallery"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+pages_build_output_dir = "dist"
+
+# `database_id` is filled in by `wrangler d1 create virtual-gallery`.
+# Local development uses wrangler's own SQLite file and ignores the id.
+[[d1_databases]]
+binding = "DB"
+database_name = "virtual-gallery"
+database_id = "PLACEHOLDER_RUN_WRANGLER_D1_CREATE"
+
+# Bucket for the photo originals, replacing Cloudinary.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "virtual-gallery-photos"

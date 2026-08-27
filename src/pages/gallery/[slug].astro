@@ -5,17 +5,16 @@ import Lightbox from "../../components/Lightbox.astro";
 import CuratingCurtain from "../../components/CuratingCurtain.astro";
 import FlowViewer from "../../components/FlowViewer.astro";
 import FreeformEditor from "../../components/FreeformEditor.astro";
-import { getAllSeries, getSeriesBySlug, getSeriesPhotos, isPublished, resolveSeriesBackground } from "../../lib/content";
+import { getDb, getSeriesBySlug, getSeriesPhotos } from "../../lib/db";
+import { isPublished, resolveSeriesBackground } from "../../lib/types";
 import { withBase } from "../../lib/url";
 
-export function getStaticPaths() {
-  return getAllSeries().map((s) => ({ params: { slug: s.slug } }));
-}
-
 const { slug } = Astro.params;
-const series = getSeriesBySlug(slug!);
-if (!series) throw new Error(`Series not found: ${slug}`);
-const photos = getSeriesPhotos(series);
+const db = getDb();
+const series = await getSeriesBySlug(db, slug!);
+// Server-rendered now, so an unknown slug is a normal 404 rather than a build error.
+if (!series) return Astro.redirect(withBase("/gallery/"), 302);
+const photos = await getSeriesPhotos(db, series);
 const published = isPublished(series);
 const isFlow = series.layout === "flow";
 const isFreeform = series.layout === "freeform";

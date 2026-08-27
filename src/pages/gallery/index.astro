@@ -1,9 +1,14 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { getAllSeries, getSeriesCover, isPublished } from "../../lib/content";
+import { getDb, getAllSeries, getSeriesCover } from "../../lib/db";
+import { isPublished } from "../../lib/types";
 import { withBase } from "../../lib/url";
 
-const series = getAllSeries();
+const db = getDb();
+const series = await getAllSeries(db);
+const covers = new Map(
+  await Promise.all(series.map(async (s) => [s.slug, await getSeriesCover(db, s)] as const))
+);
 ---
 
 <BaseLayout title="画廊 · 回声画廊">
@@ -16,7 +21,7 @@ const series = getAllSeries();
   <section class="wrap list">
     {
       series.map((s) => {
-        const cover = getSeriesCover(s);
+        const cover = covers.get(s.slug);
         return (
           <a class="row" href={withBase(`/gallery/${s.slug}/`)}>
             <div class="row__image">

@@ -1,10 +1,15 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { getAllSeries, getRecentSeries, getSeriesCover, isPublished } from "../lib/content";
+import { getDb, getAllSeries, getRecentSeries, getSeriesCover } from "../lib/db";
+import { isPublished } from "../lib/types";
 import { withBase } from "../lib/url";
 
-const series = getRecentSeries(3);
-const totalSeries = getAllSeries().length;
+const db = getDb();
+const series = await getRecentSeries(db, 3);
+const totalSeries = (await getAllSeries(db)).length;
+const covers = new Map(
+  await Promise.all(series.map(async (s) => [s.slug, await getSeriesCover(db, s)] as const))
+);
 ---
 
 <BaseLayout title="回声画廊 · 个人摄影作品集">
@@ -28,7 +33,7 @@ const totalSeries = getAllSeries().length;
   <section class="series-list wrap">
     {
       series.map((s) => {
-        const cover = getSeriesCover(s);
+        const cover = covers.get(s.slug);
         return (
           <a class="series-card" href={withBase(`/gallery/${s.slug}/`)}>
             <div class="series-card__image">

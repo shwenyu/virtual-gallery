@@ -1,32 +1,17 @@
 // @ts-check
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
 
-// A custom domain serves the site from the root, while a project page serves it
-// from /<repo>/. Dropping public/CNAME in place is what switches between the two:
-// GitHub Pages needs that file to bind the domain, so keying off it means the
-// paths can never disagree with where the site is actually published.
-const cnamePath = fileURLToPath(new URL('./public/CNAME', import.meta.url));
-const customDomain = existsSync(cnamePath) ? readFileSync(cnamePath, 'utf8').trim() : '';
-
-// When built inside GitHub Actions, GITHUB_REPOSITORY is "owner/repo".
-// This lets the site work correctly at https://<owner>.github.io/<repo>/
-// without hardcoding your username here.
-const repository = process.env.GITHUB_REPOSITORY;
-const [owner, repo] = repository ? repository.split('/') : [];
-
-const site = customDomain
-  ? `https://${customDomain}`
-  : owner
-    ? `https://${owner}.github.io`
-    : undefined;
-
-// A root user/organization site (repo named "<owner>.github.io") also lives at "/".
-const base = customDomain || !repo || repo.endsWith('.github.io') ? '/' : `/${repo}/`;
-
-// https://astro.build/config
+// The gallery renders on Cloudflare Workers and reads its content from D1, so
+// pages are server-rendered rather than baked at build time: an edit in the
+// admin shows up immediately instead of waiting for a rebuild.
+//
+// `platformProxy` gives `astro dev` the same D1/R2 bindings the deployed Worker
+// gets, so local development runs against a real (local) database.
 export default defineConfig({
-  site,
-  base,
+  output: 'server',
+  adapter: cloudflare({
+    platformProxy: { enabled: true },
+  }),
+  site: 'https://echogallery.art',
 });
