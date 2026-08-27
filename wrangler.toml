@@ -2,18 +2,28 @@ name = "virtual-gallery"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
 
-pages_build_output_dir = "dist"
+# Deployed as a Worker with static assets, not a Pages project. `main` and
+# `assets` are deliberately absent here: the Astro adapter emits them into
+# dist/server/wrangler.json at build time, and naming a `main` that only exists
+# after the build makes the build itself fail. Deploy with that generated file:
+#   npx astro build && npx wrangler deploy --config dist/server/wrangler.json
 
-# Created in the APAC region, which is the closest primary to the site's readers.
+[observability]
+enabled = true
+
+# Created in the APAC region, the closest primary to the site's readers.
 # Local development uses wrangler's own SQLite file and ignores this id.
 [[d1_databases]]
 binding = "DB"
 database_name = "virtual-gallery"
 database_id = "54bc6a80-cce7-46e1-a3d9-1330f65ee809"
 
-# Bucket for photo originals. Commented out until R2 is enabled on the account
-# (a one-time opt-in in the dashboard); photos come from Cloudinary until then,
-# and leaving a binding here for a bucket that does not exist breaks deploys.
-# [[r2_buckets]]
-# binding = "PHOTOS"
-# bucket_name = "virtual-gallery-photos"
+# Bucket for photo originals, replacing Cloudinary as photos are re-uploaded.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "virtual-gallery-photos"
+
+# Backs Astro's session support, which the Cloudflare adapter enables by default.
+[[kv_namespaces]]
+binding = "SESSION"
+id = "5dd7a5dff3f649ccbdef6ff709e91027"
