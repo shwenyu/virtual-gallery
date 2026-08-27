@@ -1,4 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=Allura&display=swap");
+/* Latin faces are bundled with the site rather than pulled from Google Fonts:
+   fonts.googleapis.com is blocked in mainland China, and when it fails the page
+   silently falls back to system fonts — which is why the phone looked different
+   from the desktop. Self-hosting makes the rendering identical everywhere. */
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/inter";
+@import "@fontsource/allura";
 
 :root {
   /* --bg-base is the untinted site background. A series page may override --bg
@@ -13,8 +19,16 @@
   --line: #d9d5cb;
   --accent: #a4744f;
 
-  --font-display: "Fraunces", "Noto Serif SC", Georgia, serif;
-  --font-body: "Inter", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  /* The Latin faces carry no CJK glyphs, so Chinese always falls through to the
+     next entry. These stacks name real system fonts in a deliberate order —
+     Songti SC and PingFang SC ship on both macOS and iOS, so a Mac and an iPhone
+     render the same — instead of the old "Noto Serif SC", which was never
+     actually downloaded and left each device picking its own default. */
+  --font-display: "Fraunces Variable", "Songti SC", "STSong", "Source Han Serif SC",
+    "Noto Serif CJK SC", Georgia, serif;
+  --font-body: "Inter Variable", "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-script: "Allura", cursive;
 
   --space-1: 0.5rem;
   --space-2: 1rem;
@@ -159,7 +173,7 @@ h1, h2, h3 {
 }
 
 .site-nav__script {
-  font-family: "Allura", cursive;
+  font-family: var(--font-script);
   font-size: 1.5rem;
   color: var(--ink-faint);
   line-height: 1;
@@ -180,12 +194,14 @@ h1, h2, h3 {
    line and drop the script wordmark rather than letting it wrap. */
 @media (max-width: 560px) {
   .site-nav__mark {
-    font-size: 1rem;
-    gap: 0.4em;
+    font-size: 0.95rem;
+    gap: 0.35em;
   }
 
+  /* Keep the script wordmark on phones — just scale it down so the header
+     still fits on one line. */
   .site-nav__script {
-    display: none;
+    font-size: 1.15rem;
   }
 
   .site-nav__links {
@@ -198,9 +214,18 @@ h1, h2, h3 {
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 430px) {
+  .site-nav__mark {
+    font-size: 0.88rem;
+  }
+
+  .site-nav__script {
+    font-size: 1rem;
+  }
+
   .site-nav__links {
-    gap: 0.75rem;
+    gap: 0.7rem;
+    font-size: 0.75rem;
   }
 }
 
