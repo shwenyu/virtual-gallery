@@ -4,14 +4,16 @@ compatibility_flags = ["nodejs_compat"]
 
 pages_build_output_dir = "dist"
 
-# `database_id` is filled in by `wrangler d1 create virtual-gallery`.
-# Local development uses wrangler's own SQLite file and ignores the id.
+# Created in the APAC region, which is the closest primary to the site's readers.
+# Local development uses wrangler's own SQLite file and ignores this id.
 [[d1_databases]]
 binding = "DB"
 database_name = "virtual-gallery"
-database_id = "PLACEHOLDER_RUN_WRANGLER_D1_CREATE"
+database_id = "54bc6a80-cce7-46e1-a3d9-1330f65ee809"
 
-# Bucket for the photo originals, replacing Cloudinary.
-[[r2_buckets]]
-binding = "PHOTOS"
-bucket_name = "virtual-gallery-photos"
+# Bucket for photo originals. Commented out until R2 is enabled on the account
+# (a one-time opt-in in the dashboard); photos come from Cloudinary until then,
+# and leaving a binding here for a bucket that does not exist breaks deploys.
+# [[r2_buckets]]
+# binding = "PHOTOS"
+# bucket_name = "virtual-gallery-photos"
