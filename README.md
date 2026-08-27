@@ -1,58 +1,23 @@
-# 回声画廊 · Virtual Gallery
+# 回声画廊 · echo gallery
 
-个人摄影作品的策展式画廊。用 [Astro](https://astro.build) 构建，托管在 GitHub Pages，
-照片存放在 Cloudinary（免费额度，自动做分辨率与色彩优化），上传通过一个仅站主本人使用的
-`/admin` 后台页面完成——没有任何自建服务器。
+个人摄影作品的策展式画廊：[echogallery.art](https://echogallery.art)
 
-## 项目结构
+用 [Astro](https://astro.build) 服务端渲染，整站跑在 Cloudflare Workers 上——
+内容存 D1 数据库，照片存 R2，后台自带登录。**不依赖任何外部账号或令牌**，
+后台改动即时生效，不需要等待构建部署。
 
-```
-src/
-├── data/
-│   ├── photos.json     照片清单（id / 图片地址 / 尺寸 / 名称 / 说明 / 标签）
-│   └── series.json     系列（策展分组）：标题、简介、排版、发布状态、主题色、自由排版坐标
-├── lib/
-│   ├── content.ts       读取上面两份数据的工具函数
-│   ├── adminGithub.ts   后台共用的 GitHub / Cloudinary 读写封装
-│   └── extractColor.ts  从图片提取核心色彩
-├── layouts/BaseLayout.astro
-├── components/
-│   ├── PhotoGrid.astro       grid / masonry / editorial / freeform 四种排版
-│   ├── FlowViewer.astro      flow 沉浸式逐张浏览 + 展厅灯光模式
-│   ├── CuratingCurtain.astro 未发布系列的「策展中」幕布
-│   └── Lightbox.astro        点击放大查看
-└── pages/
-    ├── index.astro       首页
-    ├── gallery/index.astro     系列列表
-    ├── gallery/[slug].astro    单个系列详情页
-    ├── about.astro
-    └── admin/              后台（都不出现在导航栏中）
-        ├── index.astro          上传照片
-        ├── photos/index.astro   照片管理（改名称/说明/标签、删除）
-        ├── series/index.astro   系列管理（标题、简介、排版、发布、主题色）
-        └── layout/index.astro   自由排版（拖拽缩放）
-```
+## 架构
 
-## 画廊功能
-
-**五种排版**，每个系列可在「系列管理」里单独选择：
-
-| 排版 | 效果 |
+| 层 | 用的什么 |
 | --- | --- |
-| `grid` | 均匀网格，统一裁切比例 |
-| `masonry` | 瀑布流，保留照片原始比例 |
-| `editorial` | 杂志式大小交错的节奏感排布 |
-| `freeform` | 自由拖拽摆放，位置和大小由你手工编排 |
-| `flow` | 沉浸式逐张浏览，可选横向或纵向推进 |
+| 网站 | Astro SSR on Cloudflare Workers |
+| 数据 | D1（`virtual-gallery`，APAC 区域） |
+| 图片 | R2（`virtual-gallery-photos`），经 `/photo/<key>` 提供 |
+| 会话 | KV（`virtual-gallery-sessions`） |
+| 域名 | `echogallery.art`，由 Cloudflare 直接代理到 Worker |
 
-**展厅灯光**：`flow` 排版的页面右上角有「开灯」开关。打开后背景变暗、四周压暗，
-每张照片背后亮起一圈与主题色呼应的轮廓光，模拟真实展厅的打光。这个偏好会记在浏览器里。
-
-**策展中 / 已发布**：系列可以设为未发布状态，此时画廊页显示一块「策展中，敬请期待」的幕布，
-照片不会露出。新建的系列默认是未发布的，在「系列管理」里点「发布」才会正式展出。
-
-**主题色与背景**：每个系列可以有自己的核心色彩（可以从封面自动提取，也可以手动挑），
-页面背景可以选择跟随网站默认、用主题色低饱和度淡淡渲染、或完全自定义一个颜色。
+照片放在自己域名下而不是第三方图床，是为了让访客只需要能连通一个域名——
+这对网络受限地区的访问是有意义的。
 
 ## 本地开发
 
@@ -61,71 +26,86 @@ npm install
 npm run dev
 ```
 
-打开 http://localhost:4321
+`platformProxy` 会让本地开发拿到和线上一样的 D1 / R2 / KV 绑定，
+数据落在 wrangler 自己的本地 SQLite 里，不会碰到线上数据。
 
-## 部署到 GitHub Pages
+首次需要先建本地表：
 
-1. 在 GitHub 新建一个仓库（例如 `virtual-gallery`），把这个项目推送上去。
-2. 仓库 Settings → Pages → Source 选择 **GitHub Actions**（`.github/workflows/deploy.yml` 已经配置好了自动构建部署，推送到 `main` 分支即会触发）。
-3. `astro.config.mjs` 里的 `site`/`base` 会在 Actions 构建时根据仓库名自动推导，本地开发不受影响，无需手动改动。
+```sh
+npx wrangler d1 execute virtual-gallery --local --file=db/schema.sql
+```
 
-## 配置照片上传后台（`/admin`）
+## 部署
 
-这个页面不出现在导航栏里，只有知道地址的人（也就是你自己）会访问到。它本身不包含任何密钥——
-你在自己的浏览器里填入以下信息，只保存在你本机的 `localStorage`，不会打包进网站代码。
+```sh
+npx astro build
+npx wrangler deploy --config dist/server/wrangler.json
+```
 
-### 1. Cloudinary（图床，免费额度）
+用适配器生成的那份配置部署，而不是根目录的 `wrangler.toml`：`main` 指向的入口文件
+要等构建才生成，写在根配置里会让构建本身失败，所以交给适配器生成。
 
-1. 注册 https://cloudinary.com/users/register/free
-2. 控制台首页可以看到 **Cloud Name**，记下来。
-3. Settings → Upload → Upload presets → Add upload preset：
-   - Signing Mode 选 **Unsigned**
-   - 记下这个 preset 的名字
-4. （可选，色彩管理）在该 upload preset 里可以设置默认的 `f_auto,q_auto` 传输参数；后台代码在上传后也会自动在图片地址里加上 `f_auto,q_auto`，保证浏览器按需获取合适分辨率与格式的版本。
+## 项目结构
 
-### 2. GitHub Token
+```
+db/schema.sql              数据库结构
+scripts/migrate-to-d1.mjs  当年把 JSON 数据搬进 D1 的脚本（保留作记录）
+src/
+├── lib/
+│   ├── types.ts       Photo / Series 等共享类型
+│   ├── db.ts          D1 查询与绑定获取
+│   ├── auth.ts        口令哈希与会话签名
+│   └── api.ts         API 通用响应工具
+├── middleware.ts      服务端拦截 /admin 与 /api/admin
+├── components/        PhotoGrid / FlowViewer / Lightbox / CuratingCurtain …
+└── pages/
+    ├── index.astro          首页（最新三个系列）
+    ├── gallery/             系列列表与详情
+    ├── photo/[key].ts       从 R2 提供图片
+    ├── api/auth/            登录、登出、状态
+    ├── api/admin/           照片与系列的增删改、上传
+    └── admin/               后台四个页面 + 登录页
+```
 
-1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token
-2. Repository access 选择 **只勾选这一个仓库**
-3. Permissions 里只给 **Contents: Read and write**（不需要其他权限）
-4. 生成后复制保存好（离开页面后无法再次查看）
+## 后台
 
-### 3. 在 `/admin` 页面填写
+`/admin/`，四个页面：上传照片、照片管理、系列管理、自由排版。
 
-打开 `https://<你的用户名>.github.io/virtual-gallery/admin/`，展开「连接设置」，填入：
+**登录**：首次访问会让你设置口令。口令经 PBKDF2 加盐哈希存在 D1 里，
+登录状态是服务端签发的 HttpOnly Cookie——所以**任何浏览器、任何设备都是同一份**。
 
-- Cloudinary Cloud Name / Upload Preset
-- GitHub Owner（你的用户名）/ Repo / 分支（默认 `main`）/ Token
+> Workers 限制 PBKDF2 最多 10 万次迭代，而本地开发环境不执行这个限制。
+> 调整 `PBKDF2_ITERATIONS` 时注意：超过上限只会在部署后才报错。
 
-点击「保存到本机」。之后就可以选图片、选择或新建系列、填写说明和标签，点击「上传并提交到仓库」——
-它会：上传图片到 Cloudinary → 把新照片信息写入 `src/data/photos.json` → 更新对应系列的
-`src/data/series.json`（如指定了系列）→ 提交这两次 commit。GitHub Actions 会自动重新构建，
-一两分钟后网站上就能看到新照片。
+`/admin` 和 `/api/admin` 都由 `src/middleware.ts` 在服务端拦截，
+未登录的请求根本到不了页面或写接口。
 
-> 安全提示：不要在公共/共享电脑上使用这个后台；用完可以随时在 GitHub 设置里吊销该 token。
+## 画廊功能
 
-## 后台四个页面
+**五种排版**，每个系列单独选择：
 
-所有后台页面都不出现在导航栏里，顶部有一排小标签可以互相跳转。
-
-| 页面 | 用途 |
+| 排版 | 效果 |
 | --- | --- |
-| `/admin/` | 上传照片。可以分多次选择文件（不会清空之前选的），每张都有缩略图预览、可单独移除；填统一说明文字方便批量上传 |
-| `/admin/photos/` | 逐张修改照片的名称、说明文字、标签，或删除照片（会自动清理各系列里对它的引用） |
-| `/admin/series/` | 系列的标题、副标题、简介、排版、封面、照片顺序、发布状态、主题色与背景 |
-| `/admin/layout/` | `freeform` 排版的可视化编辑器：拖动照片改位置，拖右下角改大小，可选画布比例 |
+| `grid` | 均匀网格，统一裁切比例 |
+| `masonry` | 瀑布流，保留原始比例 |
+| `editorial` | 杂志式大小交错 |
+| `freeform` | 自由拖拽摆放（手机上自动改为竖向堆叠） |
+| `flow` | 沉浸式逐张浏览，可选横向或纵向 |
 
-## 调整画廊编排
+**展厅灯光**：`flow` 页面右上角的开关。打开后整页变暗成灰调展厅，
+照片亮起一圈与主题色呼应的轮廓光。
 
-- 系列的呈现顺序、标题、描述、排版风格都在 `src/data/series.json` 里，
-  可以直接编辑，也可以全部通过后台调整。
-- 一张照片可以出现在多个系列里，只要把它的 `id` 加进对应系列的 `photoIds`。
-- 想要新的排版节奏，可以在 `src/components/PhotoGrid.astro` 里加新的 CSS 变体。
+**策展中 / 已发布**：未发布的系列显示「策展中，敬请期待」的幕布，照片不外露。
+新建系列默认未发布。
+
+**主题色与背景**：每个系列可设核心色彩，页面背景可跟随网站默认、
+用主题色淡淡渲染，或完全自定义。
 
 ## 常用命令
 
 | 命令 | 作用 |
 | --- | --- |
 | `npm run dev` | 本地开发服务器 |
-| `npm run build` | 构建到 `./dist/` |
-| `npm run preview` | 本地预览构建产物 |
+| `npm run build` | 构建 |
+| `npx wrangler deploy --config dist/server/wrangler.json` | 部署 |
+| `npx wrangler tail virtual-gallery` | 查看线上实时日志 |
