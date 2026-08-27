@@ -8,12 +8,14 @@ compatibility_flags = ["nodejs_compat"]
 # after the build makes the build itself fail. Deploy with that generated file:
 #   npx astro build && npx wrangler deploy --config dist/server/wrangler.json
 
-[observability]
-enabled = true
-
 # Keep the workers.dev URL as a fallback target. It is unreliable from mainland
 # China, but without it a failed custom-domain setup would leave no working URL.
+# Must stay above [observability]: a bare key after a table header would be read
+# as part of that table, which wrangler warned about as an unexpected field.
 workers_dev = true
+
+[observability]
+enabled = true
 
 # Custom domains for the Worker. Cloudflare creates and manages the DNS records
 # for these itself (already proxied), which is why the zone needs no hand-written

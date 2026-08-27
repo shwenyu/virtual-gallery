@@ -10,7 +10,11 @@ import { env } from "cloudflare:workers";
 
 const SESSION_COOKIE = "gallery_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // two weeks
-const PBKDF2_ITERATIONS = 210_000;
+// Workers refuses PBKDF2 above 100k ("iteration counts above 100000 are not
+// supported"), and the local dev runtime does not enforce that cap — so a higher
+// value works locally and fails only once deployed. Verification reads the count
+// back out of each stored hash, so this can be raised if the platform limit does.
+const PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
 

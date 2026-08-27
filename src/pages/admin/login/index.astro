@@ -52,11 +52,6 @@ const firstRun = await needsSetup(db);
         <button type="submit" class="button" id="login-submit">{firstRun ? "设置并进入" : "进入后台"}</button>
         <p class="login-status" id="login-status"></p>
       </form>
-
-      <p class="login-fineprint">
-        口令经过 PBKDF2 加盐哈希后存放，登录状态是一个签名的 HttpOnly Cookie。
-        服务器不保存明文口令，前端也拿不到任何可以直接改动网站的凭据。
-      </p>
     </div>
   </section>
 </BaseLayout>
@@ -93,12 +88,6 @@ const firstRun = await needsSetup(db);
     min-height: 1.2em;
   }
 
-  .login-fineprint {
-    margin-top: var(--space-3);
-    font-size: 0.74rem;
-    line-height: 1.75;
-    color: var(--ink-faint);
-  }
 </style>
 
 <script>
